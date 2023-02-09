@@ -890,9 +890,12 @@ class stochastic_benchmark:
                     group_name = group_name_fcn(raw_filename)
                     bs_filename = os.path.join(self.here.checkpoints, 'bootstrapped_results_{}.pkl'.format(group_name))
                     return bs_filename
-                    
+                
+                print(self.here.raw_data)
                 self.raw_data = glob.glob(os.path.join(self.here.raw_data, '*.pkl'))
+                print(self.raw_data)
                 bs_names = [raw2bs_names(raw_file) for raw_file in self.raw_data]
+                print(bs_names)
 
                 if all([os.path.exists(bs_name) for bs_name in bs_names]) and len(bs_names) > 1 and self.recover:
                     print('Reading bootstrapped results')

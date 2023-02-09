@@ -139,14 +139,19 @@ def SequentialExplorationSingle(df_stats: pd.DataFrame, ssParams: SequentialSear
         return None
    
     n = int(explore_budget / tau)
+    if n == 0:
+        return None
     df_tau = df_tau.iloc[0:min(n, len(df_tau))]
-    
-    if ssParams.optimization_dir == 1:
-        best_pars = df_tau.loc[[df_tau[ssParams.key].idxmax()]]
-        best_val = df_tau[ssParams.key].max()
-    elif ssParams.optimization_dir == -1:
-        best_pars = df_tau.loc[[df_tau[ssParams.key].idxmin()]]
-        best_val = df_tau[ssParams.key].min()
+
+    try:
+        if ssParams.optimization_dir == 1:
+            best_pars = df_tau.loc[[df_tau[ssParams.key].idxmax()]]
+            best_val = df_tau[ssParams.key].max()
+        elif ssParams.optimization_dir == -1:
+            best_pars = df_tau.loc[[df_tau[ssParams.key].idxmin()]]
+            best_val = df_tau[ssParams.key].min()
+    except ValueError:
+        print(df_tau)
     
     df_tau['exploit'] = 0
     df_tau['resource_step'] = df_tau['resource'].copy()
@@ -258,6 +263,6 @@ def SequentialExploration(df_stats: pd.DataFrame, ssParams: SequentialSearchPara
     """
     prepare_search(df_stats, ssParams)
     final_values = df_utils.applyParallel(df_stats.groupby(group_on), lambda df: run_experiments(df, ssParams))
-#     final_values = df_stats.groupby(group_on).progress_apply(lambda df: run_experiments(df, ssParams))
+    # final_values = df_stats.groupby(group_on).progress_apply(lambda df: run_experiments(df, ssParams))
     best_agg_alloc, exp_at_best = summarize_experiments(final_values, ssParams)
     return best_agg_alloc, exp_at_best, final_values
