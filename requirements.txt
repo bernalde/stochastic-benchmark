@@ -9,5 +9,7 @@ munkres>=1.1.4
 networkx>=3.5
 numpy>=2.0
 pandas>=2.3
+scipy>=1.11
+matplotlib>=3.7
 seaborn>=0.13.2
 tqdm>=4.66
