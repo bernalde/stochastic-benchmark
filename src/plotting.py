@@ -186,7 +186,7 @@ class Plotting:
         # Before plotting, store params_df to a csv file
         self.store_baseline_params(params_df)
 
-        # plot the virtual baseline paramters
+        # plot the virtual baseline parameters
         for param in self.parent.parameter_names:
             points = np.array(
                 [params_df.index.values, params_df[param].values]
@@ -316,7 +316,7 @@ class Plotting:
         # Before plotting, store params_df to a csv file
         self.store_baseline_params(params_df)
 
-        # plot the virtual baseline paramters
+        # plot the virtual baseline parameters
         for param in self.parent.parameter_names:
             points = np.array(
                 [params_df.index.values, params_df[param].values]
