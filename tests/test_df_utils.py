@@ -163,11 +163,30 @@ class TestMonotoneDf:
             'response': [5, 10, 15, 20, 25],  # Already monotonic
             'other_col': ['a', 'b', 'c', 'd', 'e']
         })
-        
+
         result = monotone_df(df.copy(), 'resource', 'response', opt_sense=1)
-        
+
         # Should be unchanged (already monotonic)
         np.testing.assert_array_equal(result['response'].values, [5, 10, 15, 20, 25])
+
+    def test_monotone_df_drops_level_columns(self):
+        """Monotone_df should remove groupby generated level columns."""
+        base_df = pd.DataFrame({
+            'resource': [1, 2, 1, 2],
+            'response': [3, 4, 5, 6],
+            'group': ['A', 'A', 'B', 'B']
+        })
+
+        grouped = base_df.groupby('group', as_index=False).apply(lambda x: x)
+        df_with_levels = grouped.reset_index()
+
+        assert 'level_0' in df_with_levels.columns  # ensure levels are present
+
+        result = monotone_df(df_with_levels.copy(), 'resource', 'response', opt_sense=1)
+
+        # Ensure level columns are removed
+        assert 'level_0' not in result.columns
+        assert 'level_1' not in result.columns
 
 
 class TestEvalCumm:

@@ -101,7 +101,7 @@ def monotone_df(
                 df.loc[idx, rolling_cols] = matched_row[rolling_cols].copy()
         else:
             prev_row = row.copy()
-    df.drop(columns=[c for c in df.columns if "level" in c])
+    df.drop(columns=[c for c in df.columns if "level" in c], inplace=True)
     return df
 
 
