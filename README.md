@@ -18,6 +18,7 @@ Details of the implementation and an illustrative example for Wishart instances 
 - [Background](#background)
 - [Installation](#installation)
 - [Examples](#examples)
+- [Testing](#testing)
 - [Contributors](#contributors)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
@@ -46,8 +47,8 @@ The current package implements the following functionality:
 
 1. **Clone the Repository**:
     ```bash
-    git clone https://github.com/usra-riacs/stochastic-benchmarking.git
-    cd stochastic-benchmarking
+    git clone https://github.com/usra-riacs/stochastic-benchmark.git
+    cd stochastic-benchmark
     ```
 
 2. **Set up a Virtual Environment (Recommended)**:
@@ -64,7 +65,7 @@ The current package implements the following functionality:
 ### Method 2: Downloading as a Zip Archive
 
 1. **Download the Repository**:
-    - Navigate to the [stochastic-benchmarking GitHub page](https://github.com/usra-riacs/stochastic-benchmarking).
+    - Navigate to the [stochastic-benchmark GitHub page](https://github.com/usra-riacs/stochastic-benchmark).
     - Click on the `Code` button.
     - Choose `Download ZIP`.
     - Once downloaded, extract the ZIP archive and navigate to the extracted folder in your terminal or command prompt.
@@ -82,11 +83,36 @@ The current package implements the following functionality:
 
 <!-- the following `pip` command can install this package -->
 
-<!-- ``pip install -i https://test.pypi.org/simple/ stochastic-benchmark==0.0.1`` -->
+<!-- ``pip install -i https://test.pypi.org/simple/ stochastic-benchmark==0.1.0`` -->
 
 ## Examples
 
-For a full demonstration of the stochastic-benchmarking analysis in action, refer to the example notebooks located in the `examples` folder of this repository.
+For a full demonstration of the stochastic-benchmark analysis in action, refer to the example notebooks located in the `examples` folder of this repository.
+
+## Testing
+
+Tests can be executed using the helper script `run_tests.py`. Specify the type of
+tests to run along with any optional flags:
+
+```bash
+python run_tests.py [unit|integration|smoke|all|coverage] [--verbose] [--fast]
+```
+
+Example commands:
+
+- Run the unit test suite:
+
+  ```bash
+  python run_tests.py unit
+  ```
+
+- Generate a coverage report:
+
+  ```bash
+  python run_tests.py coverage
+  ```
+
+For additional details see [TESTING.md](TESTING.md).
 
 ## Contributors
 - [@robinabrown](https://github.com/robinabrown) Robin Brown

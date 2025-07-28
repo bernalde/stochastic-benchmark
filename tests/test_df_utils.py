@@ -8,7 +8,7 @@ from unittest.mock import patch, MagicMock
 
 # Import the module to test
 import sys
-sys.path.insert(0, '/home/runner/work/stochastic-benchmark/stochastic-benchmark/src')
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 from df_utils import (
     applyParallel,
@@ -163,11 +163,30 @@ class TestMonotoneDf:
             'response': [5, 10, 15, 20, 25],  # Already monotonic
             'other_col': ['a', 'b', 'c', 'd', 'e']
         })
-        
+
         result = monotone_df(df.copy(), 'resource', 'response', opt_sense=1)
-        
+
         # Should be unchanged (already monotonic)
         np.testing.assert_array_equal(result['response'].values, [5, 10, 15, 20, 25])
+
+    def test_monotone_df_drops_level_columns(self):
+        """Monotone_df should remove groupby generated level columns."""
+        base_df = pd.DataFrame({
+            'resource': [1, 2, 1, 2],
+            'response': [3, 4, 5, 6],
+            'group': ['A', 'A', 'B', 'B']
+        })
+
+        grouped = base_df.groupby('group', as_index=False).apply(lambda x: x)
+        df_with_levels = grouped.reset_index()
+
+        assert 'level_0' in df_with_levels.columns  # ensure levels are present
+
+        result = monotone_df(df_with_levels.copy(), 'resource', 'response', opt_sense=1)
+
+        # Ensure level columns are removed
+        assert 'level_0' not in result.columns
+        assert 'level_1' not in result.columns
 
 
 class TestEvalCumm:
@@ -184,12 +203,12 @@ class TestEvalCumm:
         result = eval_cumm(df, ['group'], 'resource', 'response', opt_sense=1)
         
         assert isinstance(result, pd.DataFrame)
-        assert 'cummulativeresource' in result.columns
+        assert 'cumulativeresource' in result.columns
         
         # Check cumulative resource calculation
         group_a = result[result['group'] == 'A'].sort_values('resource')
         expected_cumm = [1, 3, 6]  # Cumulative sum of [1, 2, 3]
-        np.testing.assert_array_equal(group_a['cummulativeresource'].values, expected_cumm)
+        np.testing.assert_array_equal(group_a['cumulativeresource'].values, expected_cumm)
     
     def test_eval_cumm_multiple_groups(self):
         """Test cumulative evaluation with multiple groups."""
@@ -204,7 +223,7 @@ class TestEvalCumm:
         
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 4  # Same number of rows
-        assert 'cummulativeresource' in result.columns
+        assert 'cumulativeresource' in result.columns
 
 
 class TestReadExpRaw:

@@ -1,15 +1,13 @@
 import pytest
 import pandas as pd
-import sys
-import os
+import os, sys
 
 # Monkey patch pandas DataFrame to add back iteritems for compatibility
 if not hasattr(pd.DataFrame, 'iteritems'):
     pd.DataFrame.iteritems = pd.DataFrame.items
 
 # Add src directory to path
-sys.path.insert(0, '/home/runner/work/stochastic-benchmark/stochastic-benchmark/src')
-
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
 class TestImports:
     """Test that all modules can be imported without errors."""
