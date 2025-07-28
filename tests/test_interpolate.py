@@ -81,6 +81,19 @@ class TestInterpolationParameters:
             assert "Unsupported resource value type" in str(w[0].message)
             assert "does not support passing in values" in str(w[1].message)
             assert params.resource_value_type == "log"
+
+    def test_invalid_resource_value_type_resets_values(self):
+        """Invalid resource types should clear resource_values."""
+        def dummy_resource_fcn(df):
+            return df['time']
+
+        params = InterpolationParameters(
+            resource_fcn=dummy_resource_fcn,
+            resource_value_type="invalid_type",
+            resource_values=[1, 2, 3]
+        )
+
+        assert params.resource_values == []
     
     def test_manual_type_without_values_warning(self):
         """Test warning for manual type without resource values."""
@@ -226,6 +239,7 @@ class TestInterpolateSingle:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5, 3.5, 4.5])
         )
         
@@ -256,6 +270,7 @@ class TestInterpolateSingle:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5]),
             ignore_cols=['ignore_me']
         )
@@ -282,6 +297,7 @@ class TestInterpolateSingle:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5])
         )
         
@@ -314,6 +330,7 @@ class TestInterpolate:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5])
         )
         
@@ -367,6 +384,7 @@ class TestInterpolateReduceMem:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5])
         )
         
