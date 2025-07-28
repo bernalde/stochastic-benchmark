@@ -9,7 +9,13 @@ if not hasattr(pd.DataFrame, 'iteritems'):
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from sequential_exploration import SequentialSearchParameters, prepare_search, summarize_experiments
+from sequential_exploration import (
+    SequentialSearchParameters,
+    prepare_search,
+    summarize_experiments,
+    SequentialExplorationSingle,
+)
+import names
 
 class TestPrepareSearch:
     def test_calls_take_closest(self):
@@ -33,4 +39,39 @@ class TestSummarizeExperiments:
         assert len(best) == 2
         assert best.iloc[0]['TotalBudget'] == 20
         assert exp[exp["TotalBudget"]==20]["PerfRatio"].max() == 0.8
+
+
+class TestSequentialExplorationSingle:
+    def setup_method(self):
+        self.key = names.param2filename({"Key": "PerfRatio"}, "")
+        self.CIlower = names.param2filename({"Key": "PerfRatio", "ConfInt": "lower"}, "")
+        self.CIupper = names.param2filename({"Key": "PerfRatio", "ConfInt": "upper"}, "")
+        self.df = pd.DataFrame({
+            "resource": [1, 1, 2, 2],
+            "sweep": [0, 1, 0, 1],
+            "replica": [0, 0, 0, 0],
+            "orderA": [0, 1, 0, 1],
+            "orderB": [1, 0, 1, 0],
+            self.key: [0.1, 0.2, 0.3, 0.4],
+            self.CIlower: [0.05, 0.15, 0.25, 0.35],
+            self.CIupper: [0.15, 0.25, 0.35, 0.45],
+        })
+        self.params = SequentialSearchParameters(order_cols=["orderA", "orderB"], key=self.key)
+
+    def test_basic_run(self):
+        res = SequentialExplorationSingle(self.df, self.params, experiment=0, budget=2, explore_frac=0.5, tau=1)
+        assert isinstance(res, pd.DataFrame)
+        assert len(res) > 0
+        assert res["tau"].eq(1).all()
+        assert res["CummResource"].max() <= 2
+
+    def test_budget_too_low_returns_none(self):
+        res = SequentialExplorationSingle(self.df, self.params, experiment=0, budget=4, explore_frac=0.1, tau=5)
+        assert res is None
+
+    def test_returns_none_if_no_valid_rows(self):
+        df_na = self.df.copy()
+        df_na["orderA"] = np.nan
+        res = SequentialExplorationSingle(df_na, self.params, experiment=0, budget=2, explore_frac=0.5, tau=1)
+        assert res is None
 
