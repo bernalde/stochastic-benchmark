@@ -123,12 +123,12 @@ def eval_cumm(df, group_on, resource_col, response_col, opt_sense):
     Returns
     -------
     df : pd.DataFrame
-        Datafram with the cummulative evaluation
+        Dataframe with the cumulative evaluation
     """
 
     def cummSingle(single_df):
         single_df = monotone_df(single_df.copy(), resource_col, response_col, 1)
-        single_df.loc[:, "cummulative" + resource_col] = (
+        single_df.loc[:, "cumulative" + resource_col] = (
             single_df[resource_col].expanding(min_periods=1).sum()
         )
         return single_df
