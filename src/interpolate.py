@@ -40,7 +40,7 @@ class InterpolationParameters:
             self.resource_value_type = "log"
 
         elif self.resource_value_type in ["data", "log"] and (
-            len(self.resource_values) >= 0
+            len(self.resource_values) > 0
         ):
             warn_str = "Resource value type {} does not support passing in values. Removing.".format(
                 self.resource_value_type
@@ -124,7 +124,7 @@ def InterpolateSingle(
     df_out = pd.DataFrame(index=interpolate_resource)
     df_out.index.name = "resource"
 
-    for colname, col in df_single.iteritems():
+    for colname, col in df_single.items():
         col = pd.to_numeric(col, errors="ignore")
         if colname in group_on:
             continue

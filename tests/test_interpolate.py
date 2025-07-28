@@ -77,11 +77,10 @@ class TestInterpolationParameters:
                 resource_fcn=dummy_resource_fcn,
                 resource_value_type="invalid_type"
             )
-            
-            # Expect 2 warnings: one for invalid type, one for removing values when switching to log
-            assert len(w) == 2
+
+            # Expect a single warning for invalid type
+            assert len(w) == 1
             assert "Unsupported resource value type" in str(w[0].message)
-            assert "does not support passing in values" in str(w[1].message)
             assert params.resource_value_type == "log"
 
     def test_invalid_resource_value_type_resets_values(self):
