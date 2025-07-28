@@ -18,6 +18,7 @@ Details of the implementation and an illustrative example for Wishart instances 
 - [Background](#background)
 - [Installation](#installation)
 - [Examples](#examples)
+- [Testing](#testing)
 - [Contributors](#contributors)
 - [Acknowledgements](#acknowledgements)
 - [License](#license)
@@ -87,6 +88,31 @@ The current package implements the following functionality:
 ## Examples
 
 For a full demonstration of the stochastic-benchmarking analysis in action, refer to the example notebooks located in the `examples` folder of this repository.
+
+## Testing
+
+Tests can be executed using the helper script `run_tests.py`. Specify the type of
+tests to run along with any optional flags:
+
+```bash
+python run_tests.py [unit|integration|smoke|all|coverage] [--verbose] [--fast]
+```
+
+Example commands:
+
+- Run the unit test suite:
+
+  ```bash
+  python run_tests.py unit
+  ```
+
+- Generate a coverage report:
+
+  ```bash
+  python run_tests.py coverage
+  ```
+
+For additional details see [TESTING.md](TESTING.md).
 
 ## Contributors
 - [@robinabrown](https://github.com/robinabrown) Robin Brown
