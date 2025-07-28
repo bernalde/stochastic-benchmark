@@ -46,7 +46,7 @@ class InterpolationParameters:
                 self.resource_value_type
             )
             warnings.warn(warn_str)
-            self.resource_value = []
+            self.resource_values = []
 
 
 def generateResourceColumn(df: pd.DataFrame, interp_params: InterpolationParameters):
