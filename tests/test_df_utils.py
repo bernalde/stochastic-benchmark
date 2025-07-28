@@ -184,12 +184,12 @@ class TestEvalCumm:
         result = eval_cumm(df, ['group'], 'resource', 'response', opt_sense=1)
         
         assert isinstance(result, pd.DataFrame)
-        assert 'cummulativeresource' in result.columns
+        assert 'cumulativeresource' in result.columns
         
         # Check cumulative resource calculation
         group_a = result[result['group'] == 'A'].sort_values('resource')
         expected_cumm = [1, 3, 6]  # Cumulative sum of [1, 2, 3]
-        np.testing.assert_array_equal(group_a['cummulativeresource'].values, expected_cumm)
+        np.testing.assert_array_equal(group_a['cumulativeresource'].values, expected_cumm)
     
     def test_eval_cumm_multiple_groups(self):
         """Test cumulative evaluation with multiple groups."""
@@ -204,7 +204,7 @@ class TestEvalCumm:
         
         assert isinstance(result, pd.DataFrame)
         assert len(result) == 4  # Same number of rows
-        assert 'cummulativeresource' in result.columns
+        assert 'cumulativeresource' in result.columns
 
 
 class TestReadExpRaw:
