@@ -1,6 +1,7 @@
 import glob
 from multiprocess import Pool
 import os
+import logging
 import pandas as pd
 import names
 import numpy as np
@@ -9,6 +10,8 @@ EPSILON = 1e-10
 confidence_level = 68
 s = 0.99
 gap = 1.0
+
+logger = logging.getLogger(__name__)
 
 
 def applyParallel(dfGrouped, func):
@@ -91,8 +94,7 @@ def monotone_df(
                     )
                 ]
                 if len(matched_row) == 0:
-                    print("No matched row found for")
-                    print(row)
+                    logger.debug("No matched row found for row: %s", row)
                     continue
                 else:
                     matched_row = matched_row.iloc[0]

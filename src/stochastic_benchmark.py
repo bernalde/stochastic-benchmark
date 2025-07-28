@@ -12,6 +12,7 @@ from random import choice
 import seaborn.objects as so
 import seaborn as sns
 import warnings
+import logging
 
 
 import bootstrap
@@ -23,6 +24,8 @@ import sequential_exploration
 import stats
 import success_metrics
 import training
+
+logger = logging.getLogger(__name__)
 import names
 import utils_ws
 
@@ -227,7 +230,7 @@ class ProjectionExperiment(Experiment):
         if os.path.exists(self.rec_path):
             self.rec_params = pd.read_pickle(self.rec_path)
         else:
-            print("Evaluating recommended parameters on testing results")
+            logger.info("Evaluating recommended parameters on testing results")
             testing_results = self.parent.interp_results[
                 self.parent.interp_results["train"] == 0
             ].copy()
@@ -716,7 +719,7 @@ class RandomSearchExperiment(Experiment):
         if os.path.exists(eval_test_path):
             self.eval_test = pd.read_pickle(eval_test_path)
         else:
-            print("\t Evaluating random search on test")
+            logger.info("\t Evaluating random search on test")
             self.eval_test = random_exploration.apply_allocations(
                 self.parent.testing_stats.copy(), self.rsParams, self.meta_params
             )
@@ -899,7 +902,7 @@ class SequentialSearchExperiment(Experiment):
             self.eval_test = pd.read_pickle(eval_test_path)
         else:
             # try:
-            print("\t Evaluating sequential search on test")
+            logger.info("\t Evaluating sequential search on test")
             testing_results = self.parent.interp_results[
                 self.parent.interp_results["train"] == 0
             ].copy()
@@ -1330,7 +1333,7 @@ class stochastic_benchmark:
 
     def run_Bootstrap(self, bsParams_iter, group_name_fcn=None):
         if self.bs_results is not None:
-            print("Bootstrapped results is already populated: doing nothing.")
+            logger.info("Bootstrapped results is already populated: doing nothing.")
             return
 
         if self.reduce_mem:
@@ -1341,10 +1344,9 @@ class stochastic_benchmark:
                     os.path.join(self.here.checkpoints, "bootstrapped_results*.pkl")
                 )
                 if len(found_bs_results) >= 1:
-                    print(
-                        "Found {} bootstrapped results files and no raw data: reading results.".format(
-                            len(found_bs_results)
-                        )
+                    logger.info(
+                        "Found %s bootstrapped results files and no raw data: reading results.",
+                        len(found_bs_results),
                     )
                     self.bs_results = found_bs_results
                 else:
@@ -1374,7 +1376,7 @@ class stochastic_benchmark:
                     and len(bs_names) > 1
                     and self.recover
                 ):
-                    print(
+                    logger.info(
                         "All bootstrapped results are already found in checkpoints: reading results."
                     )
                     self.bs_results = bs_names
@@ -1390,13 +1392,13 @@ class stochastic_benchmark:
                 )
         else:
             if os.path.exists(self.here.bootstrap) and self.recover:
-                print(
+                logger.info(
                     "All bootstrapped results are already found in checkpoints: reading results."
                 )
                 self.bs_results = pd.read_pickle(self.here.bootstrap)
                 return
 
-            print("Running bootstrapped results")
+            logger.info("Running bootstrapped results")
             group_on = self.parameter_names + self.instance_cols
             if not hasattr(self, "raw_data"):
                 self.raw_data = df_utils.read_exp_raw(self.here.raw_data)
@@ -1426,11 +1428,11 @@ class stochastic_benchmark:
 
     def run_Interpolate(self, iParams):
         if self.interp_results is not None:
-            print("Interpolated results is already populated: doing nothing.")
+            logger.info("Interpolated results is already populated: doing nothing.")
             return
 
         if os.path.exists(self.here.interpolate) and self.recover:
-            print("Interpolated results are found in checkpoints: reading results.")
+            logger.info("Interpolated results are found in checkpoints: reading results.")
             self.interp_results = pd.read_pickle(self.here.interpolate)
             return
 
@@ -1440,12 +1442,12 @@ class stochastic_benchmark:
             )
 
         if self.reduce_mem:
-            print("Interpolating results with parameters: ", iParams)
+            logger.info("Interpolating results with parameters: %s", iParams)
             self.interp_results = interpolate.Interpolate_reduce_mem(
                 self.bs_results, iParams, self.parameter_names + self.instance_cols
             )
         else:
-            print("Interpolating results with parameters: ", iParams)
+            logger.info("Interpolating results with parameters: %s", iParams)
             self.interp_results = interpolate.Interpolate(
                 self.bs_results, iParams, self.parameter_names + self.instance_cols
             )
@@ -1478,14 +1480,14 @@ class stochastic_benchmark:
 
         if self.training_stats is None:
             if os.path.exists(self.here.training_stats) and self.recover:
-                print("Training stats found in checkpoints: reading results.")
+                logger.info("Training stats found in checkpoints: reading results.")
                 self.training_stats = pd.read_pickle(self.here.training_stats)
 
             else:
                 training_results = self.interp_results[
                     self.interp_results["train"] == 1
                 ]
-                print("Computing training stats")
+                logger.info("Computing training stats")
                 self.training_stats = stats.Stats(
                     training_results,
                     stat_params,
@@ -1495,7 +1497,7 @@ class stochastic_benchmark:
 
         if self.testing_stats is None:
             if os.path.exists(self.here.testing_stats) and self.recover:
-                print("Testing stats found in checkpoints: reading results.")
+                logger.info("Testing stats found in checkpoints: reading results.")
                 self.testing_stats = pd.read_pickle(self.here.testing_stats)
 
             else:
@@ -1523,7 +1525,7 @@ class stochastic_benchmark:
                 training_results = self.interp_results[
                     self.interp_results["train"] == 1
                 ]
-                print("Computing training stats")
+                logger.info("Computing training stats")
                 self.training_stats = stats.Stats(
                     training_results,
                     self.stat_params,
@@ -1541,7 +1543,7 @@ class stochastic_benchmark:
 
             elif self.interp_results is not None:
                 testing_results = self.interp_results[self.interp_results["train"] == 0]
-                print("Computing testing stats")
+                logger.info("Computing testing stats")
                 if len(testing_results) == 0:
                     self.testing_stats = pd.DataFrame()
 
@@ -1569,14 +1571,14 @@ class stochastic_benchmark:
             elif self.bs_results is not None:
                 # print(self.bs_results)
                 if self.reduce_mem:
-                    print("Interpolating results with parameters: ", self.iParams)
+                    logger.info("Interpolating results with parameters: %s", self.iParams)
                     self.interp_results = interpolate.Interpolate_reduce_mem(
                         self.bs_results,
                         self.iParams,
                         self.parameter_names + self.instance_cols,
                     )
                 else:
-                    print("Interpolating results with parameters: ", self.iParams)
+                    logger.info("Interpolating results with parameters: %s", self.iParams)
                     self.interp_results = interpolate.Interpolate(
                         self.bs_results,
                         self.iParams,
@@ -1695,7 +1697,7 @@ class stochastic_benchmark:
         """
         Adds virtual best baseline
         """
-        print("Runnng baseline")
+        logger.info("Runnng baseline")
         self.baseline = VirtualBestBaseline(self)
 
     def run_ProjectionExperiment(
@@ -1718,7 +1720,7 @@ class stochastic_benchmark:
         ProjectionExperiment
             Experiment object
         """
-        print("Running projection experiment")
+        logger.info("Running projection experiment")
         self.experiments.append(
             ProjectionExperiment(self, project_from, postprocess, postprocess_name)
         )
@@ -1729,7 +1731,7 @@ class stochastic_benchmark:
         """
         Runs random search experiments
         """
-        print("Running random search experiment")
+        logger.info("Running random search experiment")
         self.experiments.append(
             RandomSearchExperiment(
                 self,
@@ -1761,7 +1763,7 @@ class stochastic_benchmark:
         SequentialSearchExperiment
             Experiment object
         """
-        print("Running sequential search experiment")
+        logger.info("Running sequential search experiment")
         self.experiments.append(
             SequentialSearchExperiment(
                 self,
@@ -1786,7 +1788,7 @@ class stochastic_benchmark:
         StaticRecommendationExperiment
             Experiment object
         """
-        print("Running static recommendation experiment")
+        logger.info("Running static recommendation experiment")
         self.experiments.append(StaticRecommendationExperiment(self, init_from))
 
     def initPlotting(self):
