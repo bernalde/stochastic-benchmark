@@ -1,7 +1,6 @@
 import pytest
 import pandas as pd
-import sys
-import os
+import os, sys
 
 # Monkey patch pandas DataFrame to add back iteritems for compatibility
 if not hasattr(pd.DataFrame, 'iteritems'):
@@ -9,7 +8,6 @@ if not hasattr(pd.DataFrame, 'iteritems'):
 
 # Add src directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
-
 
 class TestImports:
     """Test that all modules can be imported without errors."""

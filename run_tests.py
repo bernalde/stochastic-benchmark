@@ -9,6 +9,7 @@ import argparse
 import subprocess
 import sys
 import os
+import glob
 
 def run_command(cmd, description):
     """Run a command and handle errors."""
@@ -60,12 +61,18 @@ def main():
     success = True
     
     if args.test_type == "unit" or args.test_type == "all":
-        cmd = ["python", "-m", "pytest", "tests/test_*.py"]
-        if args.verbose:
-            cmd.append("-v")
-        if args.fast:
-            cmd.extend(["-m", "not slow"])
-        success &= run_command(cmd, "Unit tests")
+        # Expand glob pattern manually so pytest receives explicit file paths
+        unit_files = sorted(glob.glob(os.path.join("tests", "test_*.py")))
+        if not unit_files:
+            print("No unit test files found")
+            success &= False
+        else:
+            cmd = ["python", "-m", "pytest", *unit_files]
+            if args.verbose:
+                cmd.append("-v")
+            if args.fast:
+                cmd.extend(["-m", "not slow"])
+            success &= run_command(cmd, "Unit tests")
     
     if args.test_type == "integration" or args.test_type == "all":
         cmd = ["python", "-m", "pytest", "tests/integration/"]

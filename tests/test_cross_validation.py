@@ -11,8 +11,16 @@ if not hasattr(pd.DataFrame, 'iteritems'):
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
 
-from cross_validation import baseline_evaluate, all_ci, propagate_ci
 import stats
+
+from cross_validation import (
+    baseline_evaluate,
+    all_ci,
+    propagate_ci,
+    random_exp_evaluate,
+    seq_search_evaluate,
+)
+
 
 class TestBaselineEvaluate:
     def test_basic(self):
@@ -55,4 +63,49 @@ class TestPropagateCI:
         df = pd.DataFrame({'response':[1], 'response_lower':[0], 'response_upper':[2]})
         with pytest.raises(ValueError):
             propagate_ci(df, 'invalid')
+
+class TestPropagateCI2:
+    def test_propagate_ci_mean(self):
+        df = pd.DataFrame({
+            'response': [1.0, 2.0, 3.0],
+            'response_lower': [0.5, 1.5, 2.5],
+            'response_upper': [1.5, 2.5, 3.5]
+        })
+        res = propagate_ci(df, 'mean')
+        assert {'mean','CI_l','CI_u'} <= set(res.columns)
+
+    def test_invalid_measure(self):
+        df = pd.DataFrame({'response':[1],'response_lower':[0],'response_upper':[2]})
+        with pytest.raises(ValueError):
+            propagate_ci(df, 'other')
+
+
+class TestEvaluateFuncs:
+    def test_random_exp_evaluate(self):
+        df = pd.DataFrame({
+            'TotalBudget':[10,10,20,20],
+            'resource':[1,2,1,2],
+            'param1':[0.1,0.2,0.3,0.4],
+            'Resp':[10,20,30,40],
+            'ConfInt=lower_Resp':[9,18,28,38],
+            'ConfInt=upper_Resp':[11,22,32,42]
+        })
+        params_df, eval_df = random_exp_evaluate(df, ['param1'], 'Resp')
+        assert 'resource' in params_df.columns
+        assert 'response' in eval_df.columns
+        assert len(params_df) == 2
+
+    def test_seq_search_evaluate(self):
+        df = pd.DataFrame({
+            'TotalBudget':[10,20],
+            'param1':[0.1,0.2],
+            'resource':[5,5],
+            'Resp':[11,12],
+            'ConfInt=upper_Resp':[12,13],
+            'ConfInt=lower_Resp':[10,11]
+        })
+        params_df, eval_df = seq_search_evaluate(df, ['param1'], 'Resp')
+        assert 'resource' in params_df.columns
+        assert len(eval_df) == 2
+
 

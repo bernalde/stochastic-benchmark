@@ -2,8 +2,7 @@ import pytest
 import pandas as pd
 import numpy as np
 import tempfile
-import os
-import sys
+import os, sys
 from unittest.mock import patch
 
 # Monkey patch pandas DataFrame to add back iteritems for compatibility

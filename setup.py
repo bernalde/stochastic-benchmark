@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="stochastic-benchmark",
-    version="0.0.1",
+    version="0.1.0",
     author="David Bernal",
     author_email="dbernalneira@usra.edu",
     description="A package to analyze benchmarking results of stochastic optimization solvers",
@@ -17,10 +17,10 @@ setuptools.setup(
     },
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
     package_dir={"": "src"},
     packages=setuptools.find_packages(where="src"),
-    python_requires=">=3.6",
+    python_requires=">=3.9",
 )
