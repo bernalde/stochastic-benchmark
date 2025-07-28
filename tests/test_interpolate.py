@@ -10,7 +10,10 @@ if not hasattr(pd.DataFrame, 'iteritems'):
 
 # Import the module to test
 import sys
-sys.path.insert(0, '/home/runner/work/stochastic-benchmark/stochastic-benchmark/src')
+import os
+TESTS_DIR = os.path.dirname(__file__)
+SRC_PATH = os.path.abspath(os.path.join(TESTS_DIR, os.pardir, 'src'))
+sys.path.insert(0, SRC_PATH)
 
 from interpolate import (
     InterpolationParameters, 
