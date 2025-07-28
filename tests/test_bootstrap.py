@@ -9,7 +9,9 @@ import copy
 
 # Import the module to test
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src')))
+TESTS_DIR = os.path.dirname(__file__)
+SRC_PATH = os.path.abspath(os.path.join(TESTS_DIR, os.pardir, 'src'))
+sys.path.insert(0, SRC_PATH)
 
 from bootstrap import (
     BootstrapParameters,
