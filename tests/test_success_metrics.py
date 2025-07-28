@@ -4,8 +4,8 @@ import numpy as np
 from unittest.mock import patch, MagicMock
 
 # Import the module to test
-import sys
-sys.path.insert(0, '/home/runner/work/stochastic-benchmark/stochastic-benchmark/src')
+import os, sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "src")))
 
 from success_metrics import (
     SuccessMetrics,
