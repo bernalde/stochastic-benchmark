@@ -82,7 +82,7 @@ The current package implements the following functionality:
 
 <!-- the following `pip` command can install this package -->
 
-<!-- ``pip install -i https://test.pypi.org/simple/ stochastic-benchmark==0.0.1`` -->
+<!-- ``pip install -i https://test.pypi.org/simple/ stochastic-benchmark==0.1.0`` -->
 
 ## Examples
 
