@@ -108,8 +108,21 @@ def virtual_best(
             smooth,
         )
 
-    vb = df.groupby(groupby).apply(br).reset_index()
-    vb.drop("level_{}".format(len(groupby)), axis=1, inplace=True)
+    # Apply to each group individually so the returned dataframe retains
+    # the group labels in a pandas-version agnostic manner.
+    dfs = []
+    for keys, grp in df.groupby(groupby):
+        best = br(grp)
+        # keys may be a scalar when grouping on a single column
+        if not isinstance(keys, tuple):
+            keys = (keys,)
+        for col, val in zip(groupby, keys):
+            best[col] = val
+        dfs.append(best)
+
+    vb = pd.concat(dfs, ignore_index=True)
+    # Reorder columns so groupby identifiers come first
+    vb = vb[groupby + [c for c in vb.columns if c not in groupby]]
     return vb
 
 

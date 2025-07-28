@@ -11,7 +11,9 @@ if not hasattr(pd.DataFrame, 'iteritems'):
     pd.DataFrame.iteritems = pd.DataFrame.items
 
 # Add src directory to path
-sys.path.insert(0, '/home/runner/work/stochastic-benchmark/stochastic-benchmark/src')
+TESTS_DIR = os.path.dirname(__file__)
+SRC_PATH = os.path.abspath(os.path.join(TESTS_DIR, os.pardir, os.pardir, 'src'))
+sys.path.insert(0, SRC_PATH)
 
 # Import modules to test integration
 import names
