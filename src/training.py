@@ -85,7 +85,7 @@ def virtual_best(
         Maximizing (1) or minimizing(-1)
     groupby : list[str]
         columns that define and instance
-    resouce_col : str
+    resource_col : str
     additional_cols : list[str]
         Additional columns that should be kept in the dataframe
     smooth: bool

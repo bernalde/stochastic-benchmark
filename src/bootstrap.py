@@ -1,6 +1,7 @@
 from collections import defaultdict
 import copy
 from dataclasses import dataclass, field
+import logging
 import df_utils
 from itertools import product
 from multiprocess import Process, Pool, Manager
@@ -16,6 +17,8 @@ import success_metrics
 EPSILON = 1e-10
 confidence_level = 68
 gap = 1.0
+
+logger = logging.getLogger(__name__)
 
 tqdm.pandas()
 
@@ -272,7 +275,7 @@ def Bootstrap(df, group_on, bs_params_list, progress_dir=None):
         df = pd.read_pickle(df)
 
     if type(df) != pd.DataFrame:
-        print("Unsupport type as bootstrap input")
+        logger.error("Unsupported type as bootstrap input")
 
     def f(bs_params):
         if progress_dir is not None:
@@ -365,12 +368,12 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
 
     elif type(df) == list:
         if type(df[0]) == str:
-            print("calling list of names method")
+            logger.debug("calling list of names method")
 
             def upper_f(upper_group_filename, bs_params_list):
                 df_group = pd.read_pickle(upper_group_filename)
                 group_name = name_fcn(upper_group_filename)
-                print("evaluation bs for {}".format(group_name))
+                logger.info("evaluation bs for %s", group_name)
                 filename = os.path.join(
                     bootstrap_dir, "bootstrapped_results_{}.pkl".format(group_name)
                 )  # TODO fix filename
