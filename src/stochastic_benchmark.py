@@ -1402,7 +1402,22 @@ class stochastic_benchmark:
             logger.info("Running bootstrapped results")
             group_on = self.parameter_names + self.instance_cols
             if not hasattr(self, "raw_data"):
-                self.raw_data = df_utils.read_exp_raw(self.here.raw_data)
+                if os.path.exists(self.here.raw_data) and glob.glob(
+                    os.path.join(self.here.raw_data, "*.pkl")
+                ):
+                    self.raw_data = df_utils.read_exp_raw(self.here.raw_data)
+                else:
+                    if os.path.exists(self.here.bootstrap):
+                        logger.info(
+                            "Raw data missing but bootstrap pickle found: reading results."
+                        )
+                        self.bs_results = pd.read_pickle(self.here.bootstrap)
+                        return
+                    raise Exception(
+                        "No raw data found at {} and no bootstrap pickle present".format(
+                            self.here.raw_data
+                        )
+                    )
 
             progress_dir = os.path.join(self.here.progress, "bootstrap/")
             if not os.path.exists(progress_dir):
