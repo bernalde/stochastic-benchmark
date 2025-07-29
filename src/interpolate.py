@@ -125,14 +125,11 @@ def InterpolateSingle(
     df_out.index.name = "resource"
 
     for colname, col in df_single.items():
-        col = pd.to_numeric(col)
         if colname in group_on:
             continue
         elif colname in interp_params.ignore_cols:
             df_out[colname] = df_single[colname].iloc[0]
-        elif np.issubdtype(
-            col, np.number
-        ):  # An alternative: pd.api.types.is_numeric_dtype(col)
+        elif np.issubdtype(col.dtype, np.number):
             df_out[colname] = np.interp(
                 interpolate_resource, df_single.index, col, left=np.nan
             )

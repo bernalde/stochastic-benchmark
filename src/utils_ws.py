@@ -88,12 +88,12 @@ def interp(
     df_out.index.name = df.index.name
 
     for colname, col in df.iteritems():
-        col = pd.to_numeric(col)
-        if np.issubdtype(col, int) or np.issubdtype(col, float):
-            df_out[colname] = np.interp(new_index, df.index, col, left=np.nan)
+        if np.issubdtype(col.dtype, np.number):
+            col_numeric = pd.to_numeric(col)
+            df_out[colname] = np.interp(new_index, df.index, col_numeric, left=np.nan)
         else:
-            logger.debug("%s", colname)
-            df_out[colname] = col
+            # For object/categorical columns, forward-fill if index matches, else NaN
+            df_out[colname] = col.reindex(new_index)
 
     return df_out
 

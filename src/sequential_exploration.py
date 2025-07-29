@@ -205,7 +205,7 @@ def SequentialExplorationSingle(
 
     exploit_df = df_stats.merge(best_pars, on=ssParams.parameter_names)
     exploit_df["exploit"] = 1
-    exploit_df.loc[:, ssParams.key].fillna(0.0, inplace=True)
+    exploit_df[ssParams.key] = exploit_df[ssParams.key].fillna(0.0)
 
     names_dict = names.filename2param(ssParams.key)
     names_dict.update({"ConfInt": "lower"})

@@ -216,7 +216,7 @@ class TestVirtualBest:
         assert 'setting' in result.columns
         
         # Should have 4 groups (2 instances × 2 settings)
-        unique_groups = result.groupby(['instance', 'setting'], include_groups=False).ngroups
+        unique_groups = result.groupby(['instance', 'setting']).ngroups
         assert unique_groups <= 4
     
     def test_virtual_best_with_smoothing(self):

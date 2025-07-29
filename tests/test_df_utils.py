@@ -54,7 +54,7 @@ class TestApplyParallel:
             return pd.DataFrame({'sum': [group_df['value'].sum()]})
         
         # Group the dataframe
-        grouped = df.groupby('group', include_groups=False)
+        grouped = df.groupby('group')
         
         # Apply parallel function
         result = applyParallel(grouped, sum_values)
@@ -82,7 +82,7 @@ class TestApplyParallel:
                 'count': [len(group_df)]
             })
         
-        grouped = df.groupby('group', include_groups=False)
+        grouped = df.groupby('group')
         result = applyParallel(grouped, compute_stats)
         
         assert len(result) == 2  # Two groups

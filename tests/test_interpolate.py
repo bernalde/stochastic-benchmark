@@ -84,17 +84,22 @@ class TestInterpolationParameters:
             assert params.resource_value_type == "log"
 
     def test_invalid_resource_value_type_resets_values(self):
-        """Invalid resource types should clear resource_values."""
+        """Invalid resource types should clear resource_values and raise two warnings."""
         def dummy_resource_fcn(df):
             return df['time']
 
-        params = InterpolationParameters(
-            resource_fcn=dummy_resource_fcn,
-            resource_value_type="invalid_type",
-            resource_values=[1, 2, 3]
-        )
-
-        assert params.resource_values == []
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            params = InterpolationParameters(
+                resource_fcn=dummy_resource_fcn,
+                resource_value_type="invalid_type",
+                resource_values=[1, 2, 3]
+            )
+            # There should be two warnings: one for invalid type, one for values not supported
+            messages = [str(warning.message) for warning in w]
+            assert any("Unsupported resource value type" in msg for msg in messages)
+            assert any("does not support passing in values" in msg for msg in messages)
+            assert params.resource_values == []
     
     def test_manual_type_without_values_warning(self):
         """Test warning for manual type without resource values."""

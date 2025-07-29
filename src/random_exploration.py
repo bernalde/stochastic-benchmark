@@ -170,7 +170,7 @@ def single_experiment(
 
     exploit_df = df_stats.merge(best_pars, on=rsParams.parameter_names)
     exploit_df["exploit"] = 1
-    exploit_df.loc[:, rsParams.key].fillna(0.0, inplace=True)
+    exploit_df[rsParams.key] = exploit_df[rsParams.key].fillna(0.0)
     names_dict = names.filename2param(rsParams.key)
     names_dict.update({"ConfInt": "lower"})
     CIlower = names.param2filename(names_dict, "")
