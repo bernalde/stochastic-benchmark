@@ -1,6 +1,7 @@
 import glob
 from multiprocess import Pool
 import os
+import logging
 import pandas as pd
 import names
 import numpy as np
@@ -9,6 +10,8 @@ EPSILON = 1e-10
 confidence_level = 68
 s = 0.99
 gap = 1.0
+
+logger = logging.getLogger(__name__)
 
 
 def applyParallel(dfGrouped, func):
@@ -91,8 +94,7 @@ def monotone_df(
                     )
                 ]
                 if len(matched_row) == 0:
-                    print("No matched row found for")
-                    print(row)
+                    logger.debug("No matched row found for row: %s", row)
                     continue
                 else:
                     matched_row = matched_row.iloc[0]
@@ -101,7 +103,7 @@ def monotone_df(
                 df.loc[idx, rolling_cols] = matched_row[rolling_cols].copy()
         else:
             prev_row = row.copy()
-    df.drop(columns=[c for c in df.columns if "level" in c])
+    df.drop(columns=[c for c in df.columns if "level" in c], inplace=True)
     return df
 
 
@@ -123,17 +125,18 @@ def eval_cumm(df, group_on, resource_col, response_col, opt_sense):
     Returns
     -------
     df : pd.DataFrame
-        Datafram with the cummulative evaluation
+        Dataframe with the cumulative evaluation
     """
 
     def cummSingle(single_df):
         single_df = monotone_df(single_df.copy(), resource_col, response_col, 1)
-        single_df.loc[:, "cummulative" + resource_col] = (
+        single_df.loc[:, "cumulative" + resource_col] = (
             single_df[resource_col].expanding(min_periods=1).sum()
         )
         return single_df
 
-    cumm_df = df.groupby(group_on).apply(cummSingle)
+    cumm_df = df.groupby(group_on).apply(cummSingle, include_groups=False)
+    cumm_df.reset_index(inplace=True)
     return cumm_df
 
 

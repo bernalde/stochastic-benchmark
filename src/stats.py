@@ -388,14 +388,13 @@ class Quantile(StatsMeasure):
 
         elif self.style == "binomial":
             search = 2
+            search_range = np.arange(-search, search + 1, 1)
             u = (
                 scipy.stats.binom.ppf(q=1 - self.alpha / 2, n=n, p=qt)
-                + np.arange(-search, search + 1, 1)
+                + search_range
                 + 1
             )
-            l = scipy.stats.binom.ppf(q=self.alpha / 2, n=n, p=qt) + np.arange(
-                -search, search + 1, 1
-            )
+            l = scipy.stats.binom.ppf(q=self.alpha / 2, n=n, p=qt) + search_range
             u[u > n] = np.inf
             l[l < 0] = -np.inf
 
@@ -548,7 +547,7 @@ def Stats(df: pd.DataFrame, stats_params: StatsParameters, group_on):
 
     def dfSS(df):
         return StatsSingle(df, stats_params)
-    df_stats = df.groupby(group_on).progress_apply(dfSS).reset_index()
+    df_stats = df.groupby(group_on).progress_apply(dfSS, include_groups=False).reset_index()
     df_stats.drop("level_{}".format(len(group_on)), axis=1, inplace=True)
     applyBounds(df_stats, stats_params)
 

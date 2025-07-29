@@ -116,9 +116,9 @@ class PerfRatio(SuccessMetrics):
             - bs_df[names.param2filename({"Key": "Response", "ConfInt": "lower"}, "")]
         ) / (random_value - best_value)
 
-        bs_df.loc[:, basename].clip(lower=lower, upper=upper, inplace=True)
-        bs_df.loc[:, CIlower].clip(lower=lower, upper=upper, inplace=True)
-        bs_df.loc[:, CIupper].clip(lower=lower, upper=upper, inplace=True)
+        bs_df[basename] = bs_df[basename].clip(lower=lower, upper=upper)
+        bs_df[CIlower] = bs_df[CIlower].clip(lower=lower, upper=upper)
+        bs_df[CIupper] = bs_df[CIupper].clip(lower=lower, upper=upper)
 
 
 class InvPerfRatio(SuccessMetrics):

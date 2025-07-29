@@ -7,10 +7,12 @@ from bisect import bisect_left
 from math import hypot
 from typing import List, Tuple, Union
 import sys
+import logging
 from matplotlib.pyplot import xlabel, xscale
 import numpy as np
 import pandas as pd
 
+logger = logging.getLogger(__name__)
 idx = pd.IndexSlice
 EPSILON = 1e-10
 
@@ -86,12 +88,12 @@ def interp(
     df_out.index.name = df.index.name
 
     for colname, col in df.iteritems():
-        col = pd.to_numeric(col, errors="ignore")
-        if np.issubdtype(col, int) or np.issubdtype(col, float):
-            df_out[colname] = np.interp(new_index, df.index, col, left=np.nan)
+        if np.issubdtype(col.dtype, np.number):
+            col_numeric = pd.to_numeric(col)
+            df_out[colname] = np.interp(new_index, df.index, col_numeric, left=np.nan)
         else:
-            print(colname)
-            df_out[colname] = col
+            # For object/categorical columns, forward-fill if index matches, else NaN
+            df_out[colname] = col.reindex(new_index)
 
     return df_out
 
@@ -191,10 +193,10 @@ def interpolate_df(
     """
 
     if dataframe is None:
-        print("Error: Dataframe is None")
+        logger.warning("Dataframe is None")
         return None
     if len(dataframe) == 0:
-        print("Error: Dataframe is empty")
+        logger.warning("Dataframe is empty")
         return None
     df = dataframe.copy()
     parameter_names = list(parameters_dict.keys())
@@ -231,7 +233,7 @@ def interpolate_df(
         df_name_partial = prefix.rsplit(".", 1)[0] + str(instance) + "_partial.pkl"
         df_path_partial = os.path.join(results_path, df_name_partial)
         if os.path.exists(df_path_partial) and not overwrite_pickles:
-            print("Loaded partial dataframe from file")
+            logger.debug("Loaded partial dataframe from file")
             df_interpolate = pd.read_pickle(df_path_partial)
             dataframes_instance = [df_interpolate]
         else:
@@ -253,10 +255,9 @@ def interpolate_df(
                 if "params" in df_original.columns:
                     df_original.drop(columns=["params"], inplace=True)
                 if len(df_original) == 0:
-                    print(
-                        "No data for parameter set",
+                    logger.debug(
+                        "No data for parameter set %s with instance %s",
                         parameter_set,
-                        "with instance",
                         instance,
                     )
                     continue
@@ -326,7 +327,7 @@ def interpolate_df(
             dataframes.append(df_interpolate)
 
     if all([len(i) == 0 for i in dataframes]):
-        print("No dataframes to merge")
+        logger.warning("No dataframes to merge")
         return None
     df_interpolated = pd.concat(dataframes).reset_index(drop=True)
     if save_pickle:

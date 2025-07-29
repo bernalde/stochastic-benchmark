@@ -10,7 +10,10 @@ if not hasattr(pd.DataFrame, 'iteritems'):
 
 # Import the module to test
 import sys
-sys.path.insert(0, '/home/runner/work/stochastic-benchmark/stochastic-benchmark/src')
+import os
+TESTS_DIR = os.path.dirname(__file__)
+SRC_PATH = os.path.abspath(os.path.join(TESTS_DIR, os.pardir, 'src'))
+sys.path.insert(0, SRC_PATH)
 
 from interpolate import (
     InterpolationParameters, 
@@ -74,12 +77,29 @@ class TestInterpolationParameters:
                 resource_fcn=dummy_resource_fcn,
                 resource_value_type="invalid_type"
             )
-            
-            # Expect 2 warnings: one for invalid type, one for removing values when switching to log
-            assert len(w) == 2
+
+            # Expect a single warning for invalid type
+            assert len(w) == 1
             assert "Unsupported resource value type" in str(w[0].message)
-            assert "does not support passing in values" in str(w[1].message)
             assert params.resource_value_type == "log"
+
+    def test_invalid_resource_value_type_resets_values(self):
+        """Invalid resource types should clear resource_values and raise two warnings."""
+        def dummy_resource_fcn(df):
+            return df['time']
+
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            params = InterpolationParameters(
+                resource_fcn=dummy_resource_fcn,
+                resource_value_type="invalid_type",
+                resource_values=[1, 2, 3]
+            )
+            # There should be two warnings: one for invalid type, one for values not supported
+            messages = [str(warning.message) for warning in w]
+            assert any("Unsupported resource value type" in msg for msg in messages)
+            assert any("does not support passing in values" in msg for msg in messages)
+            assert params.resource_values == []
     
     def test_manual_type_without_values_warning(self):
         """Test warning for manual type without resource values."""
@@ -225,6 +245,7 @@ class TestInterpolateSingle:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5, 3.5, 4.5])
         )
         
@@ -255,6 +276,7 @@ class TestInterpolateSingle:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5]),
             ignore_cols=['ignore_me']
         )
@@ -281,6 +303,7 @@ class TestInterpolateSingle:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5])
         )
         
@@ -313,6 +336,7 @@ class TestInterpolate:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5])
         )
         
@@ -366,6 +390,7 @@ class TestInterpolateReduceMem:
         
         params = InterpolationParameters(
             resource_fcn=resource_fcn,
+            resource_value_type="manual",
             resource_values=np.array([1.5, 2.5])
         )
         

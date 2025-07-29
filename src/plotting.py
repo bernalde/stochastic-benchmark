@@ -7,6 +7,7 @@ import seaborn.objects as so
 import training
 import os
 import numpy as np
+import logging
 from matplotlib.collections import LineCollection
 
 monotone = False
@@ -15,6 +16,8 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 ws_style = os.path.join(dir_path, "ws.mplstyle")
 
 plt.style.use(ws_style)
+
+logger = logging.getLogger(__name__)
 
 
 class Plotting:
@@ -186,7 +189,7 @@ class Plotting:
         # Before plotting, store params_df to a csv file
         self.store_baseline_params(params_df)
 
-        # plot the virtual baseline paramters
+        # plot the virtual baseline parameters
         for param in self.parent.parameter_names:
             points = np.array(
                 [params_df.index.values, params_df[param].values]
@@ -211,7 +214,7 @@ class Plotting:
         # Plot parameters from experiments
         for experiment in self.parent.experiments:
             # Choose whether to monotomize experiment parameters
-            print("Plotting experiment", experiment)
+            logger.info("Plotting experiment %s", experiment)
             if monotone:
                 res = experiment.evaluate_monotone()
             else:
@@ -316,7 +319,7 @@ class Plotting:
         # Before plotting, store params_df to a csv file
         self.store_baseline_params(params_df)
 
-        # plot the virtual baseline paramters
+        # plot the virtual baseline parameters
         for param in self.parent.parameter_names:
             points = np.array(
                 [params_df.index.values, params_df[param].values]

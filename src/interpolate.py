@@ -40,13 +40,13 @@ class InterpolationParameters:
             self.resource_value_type = "log"
 
         elif self.resource_value_type in ["data", "log"] and (
-            len(self.resource_values) >= 0
+            len(self.resource_values) > 0
         ):
             warn_str = "Resource value type {} does not support passing in values. Removing.".format(
                 self.resource_value_type
             )
             warnings.warn(warn_str)
-            self.resource_value = []
+            self.resource_values = []
 
 
 def generateResourceColumn(df: pd.DataFrame, interp_params: InterpolationParameters):
@@ -124,15 +124,12 @@ def InterpolateSingle(
     df_out = pd.DataFrame(index=interpolate_resource)
     df_out.index.name = "resource"
 
-    for colname, col in df_single.iteritems():
-        col = pd.to_numeric(col, errors="ignore")
+    for colname, col in df_single.items():
         if colname in group_on:
             continue
         elif colname in interp_params.ignore_cols:
             df_out[colname] = df_single[colname].iloc[0]
-        elif np.issubdtype(
-            col, np.number
-        ):  # An alternative: pd.api.types.is_numeric_dtype(col)
+        elif np.issubdtype(col.dtype, np.number):
             df_out[colname] = np.interp(
                 interpolate_resource, df_single.index, col, left=np.nan
             )
@@ -165,8 +162,7 @@ def Interpolate(df: pd.DataFrame, interp_params: InterpolationParameters, group_
     def dfInterp(df):
         return InterpolateSingle(df, interp_params, group_on)
 
-    df_interp = df.groupby(group_on).progress_apply(dfInterp)
-    df_interp.reset_index(inplace=True)
+    df_interp = df.groupby(group_on).progress_apply(dfInterp, include_groups=False)
     return df_interp
 
 
@@ -195,7 +191,8 @@ def Interpolate_reduce_mem(
         df = pd.read_pickle(df_name)
         generateResourceColumn(df, interp_params)
         temp_df_interp = df.groupby(group_on).progress_apply(
-            lambda df: InterpolateSingle(df, interp_params, group_on)
+            lambda df: InterpolateSingle(df, interp_params, group_on),
+            include_groups=False
         )
         temp_df_interp.reset_index(inplace=True)
         df_interp_list.append(temp_df_interp)

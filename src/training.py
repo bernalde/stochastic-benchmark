@@ -85,7 +85,7 @@ def virtual_best(
         Maximizing (1) or minimizing(-1)
     groupby : list[str]
         columns that define and instance
-    resouce_col : str
+    resource_col : str
     additional_cols : list[str]
         Additional columns that should be kept in the dataframe
     smooth: bool
@@ -108,7 +108,7 @@ def virtual_best(
             smooth,
         )
 
-    vb = df.groupby(groupby).apply(br).reset_index()
+    vb = df.groupby(groupby).apply(br, include_groups=False).reset_index()
     vb.drop("level_{}".format(len(groupby)), axis=1, inplace=True)
     return vb
 
@@ -137,7 +137,8 @@ def split_train_test(df: pd.DataFrame, split_on: List[str], ptrain: float):
             .apply(
                 lambda df: pd.DataFrame.from_dict(
                     {"train": [np.random.binomial(1, ptrain)]}
-                )
+                ),
+                include_groups=False
             )
             .merge(df, on=split_on)
         )
@@ -149,7 +150,8 @@ def split_train_test(df: pd.DataFrame, split_on: List[str], ptrain: float):
                 .apply(
                     lambda df: pd.DataFrame.from_dict(
                         {"train": [np.random.binomial(1, ptrain)]}
-                    )
+                    ),
+                    include_groups=False
                 )
                 .merge(df, on=split_on)
             )
@@ -324,5 +326,5 @@ def evaluate(
                 df, recipes, distance_fcn, parameter_names, resource_col
             )
 
-        df_eval = df.groupby(group_on).apply(eval_fcn).reset_index(drop=True)
+        df_eval = df.groupby(group_on).apply(eval_fcn, include_groups=False).reset_index(drop=True)
         return df_eval

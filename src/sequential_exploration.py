@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from itertools import product
 
 from tqdm import tqdm
+import logging
 
 import pandas as pd
 import df_utils
@@ -9,6 +10,8 @@ import names
 from utils_ws import *
 
 import stats
+
+logger = logging.getLogger(__name__)
 
 tqdm.pandas()
 
@@ -172,7 +175,9 @@ def SequentialExplorationSingle(
     )
 
     if len(df_tau) == 0:
-        print("Sequential search experiment terminated due to insufficient data")
+        logger.warning(
+            "Sequential search experiment terminated due to insufficient data"
+        )
         return None
 
     n = int(explore_budget / tau)
@@ -186,8 +191,12 @@ def SequentialExplorationSingle(
             best_pars = df_tau.loc[[df_tau[ssParams.key].idxmin()]]
             best_val = df_tau[ssParams.key].min()
     else:
-        print("Sequential search experiment data is empty")
-        print("Budget", budget, " expl_frac", explore_frac, "tau", tau)
+        logger.warning(
+            "Sequential search experiment data is empty. Budget %s expl_frac %s tau %s",
+            budget,
+            explore_frac,
+            tau,
+        )
         return None
 
     df_tau["exploit"] = 0
@@ -196,7 +205,7 @@ def SequentialExplorationSingle(
 
     exploit_df = df_stats.merge(best_pars, on=ssParams.parameter_names)
     exploit_df["exploit"] = 1
-    exploit_df.loc[:, ssParams.key].fillna(0.0, inplace=True)
+    exploit_df[ssParams.key] = exploit_df[ssParams.key].fillna(0.0)
 
     names_dict = names.filename2param(ssParams.key)
     names_dict.update({"ConfInt": "lower"})
@@ -312,7 +321,7 @@ def apply_allocations(
     pd.DataFrame of results
     """
     final_values = []
-    print(len(best_agg_alloc))
+    logger.debug("%s", len(best_agg_alloc))
     for _, row in tqdm(best_agg_alloc.iterrows()):
         # print(row)
         budget = row["TotalBudget"]
@@ -354,7 +363,7 @@ def apply_allocations(
             # else:
             #     print('no res list')
 
-        # df_experiment = df_stats.groupby(group_on).apply(lambda df: SequentialExplorationSingle(df, ssParams, 0, budget, explore_frac, tau).iloc[[-1]])
+        # df_experiment = df_stats.groupby(group_on, include_groups=False).apply(lambda df: SequentialExplorationSingle(df, ssParams, 0, budget, explore_frac, tau).iloc[[-1]])
 
     return pd.concat(final_values, ignore_index=True)
 
