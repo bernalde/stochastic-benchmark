@@ -363,7 +363,7 @@ def apply_allocations(
             # else:
             #     print('no res list')
 
-        # df_experiment = df_stats.groupby(group_on).apply(lambda df: SequentialExplorationSingle(df, ssParams, 0, budget, explore_frac, tau).iloc[[-1]])
+        # df_experiment = df_stats.groupby(group_on, include_groups=False).apply(lambda df: SequentialExplorationSingle(df, ssParams, 0, budget, explore_frac, tau).iloc[[-1]])
 
     return pd.concat(final_values, ignore_index=True)
 

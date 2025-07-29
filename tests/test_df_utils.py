@@ -54,7 +54,7 @@ class TestApplyParallel:
             return pd.DataFrame({'sum': [group_df['value'].sum()]})
         
         # Group the dataframe
-        grouped = df.groupby('group')
+        grouped = df.groupby('group', include_groups=False)
         
         # Apply parallel function
         result = applyParallel(grouped, sum_values)
@@ -82,7 +82,7 @@ class TestApplyParallel:
                 'count': [len(group_df)]
             })
         
-        grouped = df.groupby('group')
+        grouped = df.groupby('group', include_groups=False)
         result = applyParallel(grouped, compute_stats)
         
         assert len(result) == 2  # Two groups
@@ -179,7 +179,7 @@ class TestMonotoneDf:
             'group': ['A', 'A', 'B', 'B']
         })
 
-        grouped = base_df.groupby('group', as_index=False).apply(lambda x: x)
+        grouped = base_df.groupby('group', as_index=False).apply(lambda x: x, include_groups=False)
         df_with_levels = grouped.reset_index()
 
         assert 'level_0' in df_with_levels.columns  # ensure levels are present

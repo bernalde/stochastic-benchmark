@@ -135,7 +135,7 @@ def eval_cumm(df, group_on, resource_col, response_col, opt_sense):
         )
         return single_df
 
-    cumm_df = df.groupby(group_on).apply(cummSingle)
+    cumm_df = df.groupby(group_on).apply(cummSingle, include_groups=False)
     return cumm_df
 
 

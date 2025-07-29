@@ -388,13 +388,14 @@ class ProjectionExperiment(Experiment):
         #     res = df_utils.monotone_df(joint, 'resource', 'response', 1)
         #     return res
 
-        # joint = joint.groupby(self.parent.instance_cols).apply(mono)
+        # joint = joint.groupby(self.parent.instance_cols, include_groups=False).apply(mono)
 
         # params_df = joint.loc[:, ['resource'] + self.parent.parameter_names]
         # eval_df = joint.loc[:, ['resource','response', 'response_lower', 'response_upper']]
         # params_df = params_df.groupby('resource').mean()
         # params_df.reset_index(inplace=True)
 
+        # eval_df = eval_df.groupby('resource').median()
         # eval_df = eval_df.groupby('resource').median()
         # eval_df.reset_index(inplace=True)
 
@@ -1168,7 +1169,7 @@ class VirtualBestBaseline:
             def dfSS(df):
                 return StatsSingle(df, stats_params)
 
-            df_stats = df.groupby(group_on).progress_apply(dfSS).reset_index()
+            df_stats = df.groupby(group_on).progress_apply(dfSS, include_groups=False).reset_index()
             df_stats.drop("level_{}".format(len(group_on)), axis=1, inplace=True)
             applyBounds(df_stats, stats_params)
 
@@ -1688,7 +1689,7 @@ class stochastic_benchmark:
             return bs_df
 
         full_eval = (
-            df.groupby(group_on).apply(lambda df: evaluate_single(df)).reset_index()
+            df.groupby(group_on).apply(lambda df: evaluate_single(df), include_groups=False).reset_index()
         )
         full_eval.drop(columns=["level_{}".format(len(group_on))], inplace=True)
         return full_eval
