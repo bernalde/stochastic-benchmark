@@ -336,7 +336,7 @@ class ProjectionExperiment(Experiment):
         ----------
         monotone : bool, optional
             If True, the recommended parameters are evaluated on the monotone testing results, by default False
-        
+
         Returns
         -------
         params_df : pd.DataFrame
@@ -1159,7 +1159,7 @@ class VirtualBestBaseline:
                 Only one statsMeasure will be used.
             group_on : list[str]
                 Confidence interval propagation will be done for all rows of dataframe having the same values for groupon
-            
+
             Returns
             -------
             pd.DataFrame
@@ -1169,7 +1169,11 @@ class VirtualBestBaseline:
             def dfSS(df):
                 return StatsSingle(df, stats_params)
 
-            df_stats = df.groupby(group_on).progress_apply(dfSS, include_groups=False).reset_index()
+            df_stats = (
+                df.groupby(group_on)
+                .progress_apply(dfSS, include_groups=False)
+                .reset_index()
+            )
             df_stats.drop("level_{}".format(len(group_on)), axis=1, inplace=True)
             applyBounds(df_stats, stats_params)
 
@@ -1448,7 +1452,9 @@ class stochastic_benchmark:
             return
 
         if os.path.exists(self.here.interpolate) and self.recover:
-            logger.info("Interpolated results are found in checkpoints: reading results.")
+            logger.info(
+                "Interpolated results are found in checkpoints: reading results."
+            )
             self.interp_results = pd.read_pickle(self.here.interpolate)
             return
 
@@ -1587,14 +1593,18 @@ class stochastic_benchmark:
             elif self.bs_results is not None:
                 # print(self.bs_results)
                 if self.reduce_mem:
-                    logger.info("Interpolating results with parameters: %s", self.iParams)
+                    logger.info(
+                        "Interpolating results with parameters: %s", self.iParams
+                    )
                     self.interp_results = interpolate.Interpolate_reduce_mem(
                         self.bs_results,
                         self.iParams,
                         self.parameter_names + self.instance_cols,
                     )
                 else:
-                    logger.info("Interpolating results with parameters: %s", self.iParams)
+                    logger.info(
+                        "Interpolating results with parameters: %s", self.iParams
+                    )
                     self.interp_results = interpolate.Interpolate(
                         self.bs_results,
                         self.iParams,
@@ -1704,7 +1714,9 @@ class stochastic_benchmark:
             return bs_df
 
         full_eval = (
-            df.groupby(group_on).apply(lambda df: evaluate_single(df), include_groups=False).reset_index()
+            df.groupby(group_on)
+            .apply(lambda df: evaluate_single(df), include_groups=False)
+            .reset_index()
         )
         full_eval.drop(columns=["level_{}".format(len(group_on))], inplace=True)
         return full_eval
@@ -1811,4 +1823,52 @@ class stochastic_benchmark:
         """
         Sets up plotting - this should be run after all experiments are run
         """
-        self.plots = Plotting(self)
+        self.plots = Plotting(self.here.checkpoints)
+
+    def export_plot_csvs(self, monotone=False):
+        """Save csv files required for plotting without loading pickle files."""
+
+        params_dir = os.path.join(self.here.checkpoints, "params_plotting")
+        perf_dir = os.path.join(self.here.checkpoints, "performance_plotting")
+        meta_dir = os.path.join(self.here.checkpoints, "meta_params_plotting")
+        for d in [params_dir, perf_dir, meta_dir]:
+            if not os.path.exists(d):
+                os.makedirs(d)
+
+        # Baseline parameters and performance
+        params_df, eval_df = self.baseline.evaluate()
+        params_df.to_csv(os.path.join(params_dir, "baseline.csv"))
+        eval_df.to_csv(os.path.join(perf_dir, "baseline.csv"))
+
+        # Experiments
+        for experiment in self.experiments:
+            if monotone and hasattr(experiment, "evaluate_monotone"):
+                res = experiment.evaluate_monotone()
+            else:
+                res = experiment.evaluate()
+
+            params_df = res[0]
+            eval_df = res[1]
+
+            params_df.to_csv(os.path.join(params_dir, f"{experiment.name}.csv"))
+            if len(res) == 3:
+                preproc_params = res[2]
+                preproc_params.to_csv(
+                    os.path.join(params_dir, f"{experiment.name}params.csv")
+                )
+
+            eval_df.to_csv(os.path.join(perf_dir, f"{experiment.name}.csv"))
+
+            if hasattr(experiment, "meta_params"):
+                mp_df = experiment.meta_params.copy()
+                sort_col = getattr(experiment, "resource", "TotalBudget")
+                if sort_col in mp_df.columns:
+                    mp_df.sort_values(by=sort_col, inplace=True)
+                mp_df.to_csv(os.path.join(meta_dir, f"{experiment.name}.csv"))
+
+            if hasattr(experiment, "preproc_meta_params"):
+                mp_df = experiment.preproc_meta_params.copy()
+                sort_col = getattr(experiment, "resource", "TotalBudget")
+                if sort_col in mp_df.columns:
+                    mp_df.sort_values(by=sort_col, inplace=True)
+                mp_df.to_csv(os.path.join(meta_dir, f"{experiment.name}_preproc.csv"))
