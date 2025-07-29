@@ -1080,112 +1080,46 @@ class VirtualBestBaseline:
         CIupper = names.param2filename(
             {"Key": self.parent.response_key, "ConfInt": "upper"}, ""
         )
-        eval_df = self.rec_params.copy()
+        eval_df = self.rec_params.loc[:, ["resource", base, CIlower, CIupper]].copy()
+
+        # rename columns to match stats.py expectations
         eval_df.rename(
             columns={
-                base: "response",
-                CIlower: "response_lower",
-                CIupper: "response_upper",
+                base: names.param2filename({"Key": "response"}, ""),
+                CIlower: names.param2filename({"Key": "response", "ConfInt": "lower"}, ""),
+                CIupper: names.param2filename({"Key": "response", "ConfInt": "upper"}, ""),
             },
             inplace=True,
         )
 
-        eval_df = eval_df.loc[
-            :, ["resource", "response", "response_lower", "response_upper"]
-        ]
+        stat_measure = stats.Median() if median else stats.Mean()
+        stParams = stats.StatsParameters(
+            metrics=["response"], stats_measures=[stat_measure]
+        )
 
-        def StatsSingle(df_single: pd.DataFrame, stat_params: stats.StatsParameters):
-            """
-            Function for computing the stat (such as mean) and confidence intervals of the response
+        # The original implementation clipped the propagated confidence
+        # intervals to the valid response domain of [0, 1].
+        # Unless the user explicitly sets bounds in ``stat_params`` these are
+        # left unset, so the values will not be clipped.
 
-            Parameters
-            ----------
-            df_single : pd.DataFrame
-                Dataframe of a single resource level
-            stat_params : stats.StatsParameters
-                Only one stats_measure will be used.
+        eval_df = stats.Stats(eval_df, stParams, ["resource"])
 
-            Returns
-            -------
-            pd.Dataframe
-            """
-            df_dict = {}
-            sm = stat_params.stats_measures[0]  # Ignore the rest if they exist
-            base, CIlower, CIupper = sm.ConfInts(
-                df_single["response"],
-                df_single["response_lower"],
-                df_single["response_upper"],
-            )
+        metric_base = names.param2filename({"Key": "response", "Metric": stat_measure.name}, "")
+        lower_name = names.param2filename({"Key": "response", "Metric": stat_measure.name, "ConfInt": "lower"}, "")
+        upper_name = names.param2filename({"Key": "response", "Metric": stat_measure.name, "ConfInt": "upper"}, "")
 
-            df_dict["response"] = [base]
-            df_dict["response_lower"] = [CIlower]
-            df_dict["response_upper"] = [CIupper]
-            df_dict["count"] = len(df_single["response"])
+        eval_df.rename(
+            columns={
+                metric_base: "response",
+                lower_name: "response_lower",
+                upper_name: "response_upper",
+            },
+            inplace=True,
+        )
 
-            df_stats_single = pd.DataFrame.from_dict(df_dict)
-            return df_stats_single
-
-        def applyBounds(df: pd.DataFrame, stat_params: stats.StatsParameters):
-            """
-            Trim the response values obtained from statsSingle to be between 0 and 1
-
-            Parameters
-            ----------
-            df : pd.DataFrame
-                Dataframe of a single resource level
-            stat_params : stats.StatsParameters
-                Only one stats_measure will be used.
-            """
-            df_copy = df.loc[:, ("response_lower")].copy()
-            df_copy.clip(lower=0.0, inplace=True)
-            df.loc[:, ("response_lower")] = df_copy
-
-            df_copy = df.loc[:, ("response_upper")].copy()
-            df_copy.clip(upper=1.0, inplace=True)
-            df.loc[:, ("response_upper")] = df_copy
-            return
-
-        def Stats(
-            df: pd.DataFrame, stats_params: stats.StatsParameters, group_on=["resource"]
-        ):
-            """
-            Compute a stat(eg. mean) of the response along with CIs for it, for each value of resource for the virtual best
-
-            Parameters
-            ----------
-            df : pd.DataFrame
-                Dataframe of a single resource level with columns 'resource', 'response', 'response_lower' and 'response_upper'
-            stats_params : stats.StatsParameters
-                Only one statsMeasure will be used.
-            group_on : list[str]
-                Confidence interval propagation will be done for all rows of dataframe having the same values for groupon
-            
-            Returns
-            -------
-            pd.DataFrame
-                Dataframe with columns 'resource', 'response', 'response_lower' and 'response_upper'
-            """
-
-            def dfSS(df):
-                return StatsSingle(df, stats_params)
-
-            df_stats = df.groupby(group_on).progress_apply(dfSS, include_groups=False).reset_index()
-            df_stats.drop("level_{}".format(len(group_on)), axis=1, inplace=True)
-            applyBounds(df_stats, stats_params)
-
-            return df_stats
-
-        if median:
-            stParams = stats.StatsParameters(
-                metrics=["response"], stats_measures=[stats.Median()]
-            )
-            eval_df = Stats(eval_df, stParams, ["resource"])
-        else:
-            stParams = stats.StatsParameters(
-                metrics=["response"], stats_measures=[stats.Mean()]
-            )
-            eval_df = Stats(eval_df, stParams, ["resource"])
+        eval_df = eval_df.loc[:, ["resource", "response", "response_lower", "response_upper", "count"]]
         eval_df.reset_index(inplace=True)
+
         return params_df, eval_df
 
 
