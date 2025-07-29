@@ -163,7 +163,6 @@ def Interpolate(df: pd.DataFrame, interp_params: InterpolationParameters, group_
         return InterpolateSingle(df, interp_params, group_on)
 
     df_interp = df.groupby(group_on).progress_apply(dfInterp, include_groups=False)
-    df_interp.reset_index(inplace=True)
     return df_interp
 
 
