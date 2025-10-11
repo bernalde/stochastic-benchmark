@@ -108,7 +108,7 @@ def virtual_best(
             smooth,
         )
 
-    vb = df.groupby(groupby).apply(br, include_groups=False).reset_index()
+    vb = df.groupby(groupby).apply(br).reset_index() # include_groups=False, Pandas Version Error
     vb.drop("level_{}".format(len(groupby)), axis=1, inplace=True)
     return vb
 
@@ -138,8 +138,7 @@ def split_train_test(df: pd.DataFrame, split_on: List[str], ptrain: float):
                 lambda df: pd.DataFrame.from_dict(
                     {"train": [np.random.binomial(1, ptrain)]}
                 ),
-                include_groups=False
-            )
+            ) # include_groups=False # Pandas Version Error
             .merge(df, on=split_on)
         )
     else:
@@ -151,7 +150,7 @@ def split_train_test(df: pd.DataFrame, split_on: List[str], ptrain: float):
                     lambda df: pd.DataFrame.from_dict(
                         {"train": [np.random.binomial(1, ptrain)]}
                     ),
-                    include_groups=False
+                    # include_groups=False # Pandas Version Error
                 )
                 .merge(df, on=split_on)
             )
@@ -302,29 +301,33 @@ def evaluate(
     Parameters
     ----------
     df : pd.DataFrame
-        Dataframe to do the projection from
+        Dataframe with points that should be used for projection
     recipes : pd.DataFrame
-        Recipes to try out
-    distance_fcn : Callable
-        Computes distance between parameters for projection
-    parameters_names : list[str]
+        recipes that should be tried out on df_eval
+    distance_fcn : callable
+        Function that defines distance from df_eval parameters to recipe parameters
+    parameter_names : list[str]
     resource_col : str
     group_on : list[str]
-        list of columns that define an instance
+        Columns to group by before applying projection
 
     Returns
     -------
-    df_eval : pd.DataFrame
+    res : pd.DataFrame
         Dataframe with evaluated recipes
     """
-    if len(group_on) == 0:
-        return evaluate_single(df, recipes, distance_fcn, parameter_names, resource_col)
+
+    def eval_single(df):
+        return evaluate_single(
+            df, recipes, distance_fcn, parameter_names, resource_col
+        )
+
+    if len(group_on) > 0:
+        # The result of apply will have an index based on the group_on keys.
+        # The dataframe returned by eval_single also contains the group_on columns.
+        # This causes a conflict in reset_index. We can drop the extra index levels.
+        res = df.groupby(group_on).apply(eval_single)
+        res = res.reset_index(level=group_on, drop=True).reset_index()
     else:
-
-        def eval_fcn(df):
-            return evaluate_single(
-                df, recipes, distance_fcn, parameter_names, resource_col
-            )
-
-        df_eval = df.groupby(group_on).apply(eval_fcn, include_groups=False).reset_index(drop=True)
-        return df_eval
+        res = eval_single(df)
+    return res
