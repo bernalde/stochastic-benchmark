@@ -22,21 +22,22 @@ logger = logging.getLogger(__name__)
 
 class Plotting:
     """
-    Plotting helpers for coordinating plots
+    Plotting helpers for coordinating plots using csv files
 
     Attributes
     ----------
-    parent : stochatic_benchmark
+    checkpoints_dir : str
+        Directory where plotting csv files are stored
     colors : list[str]
         Color palette for experiments. Baseline will always be black
     xcale : str
-        scale for shared x axis
+        Scale for shared x axis
     xlims : tuple
-        limits for shared x axis
+        Limits for shared x axis
 
     Methods
     -------
-    __init__(parent)
+    __init__(checkpoints_dir)
         Initialize plotting object
     set_colors(cp)
         Sets color palette and reassigns colors to experiments
@@ -46,14 +47,8 @@ class Plotting:
         Makes legend for each experiment
     apply_shared(p, baseline_bool=True, experiment_bools=None)
         Apply shared plot components (xscale, xlim, legends)
-    assign_colors()
-        Assigns colors to experiments
     plot_parameters_together()
         Plot the parameters together
-    store_baseline_params(params_df)
-        Store baseline parameters
-    store_expt_params(experiment_name, res)
-        Store experiment parameters
     plot_parameters_separate()
         Plot the parameters separately
     plot_parameters_distance()
@@ -64,11 +59,35 @@ class Plotting:
         Plot the meta parameters
     """
 
-    def __init__(self, parent):
-        self.parent = parent
-        self.colors = ["blue", "green", "red", "purple", "orange", "cyan"]
-        self.colors = sns.color_palette("tab10", len(self.parent.experiments))
-        self.assign_colors()
+    def __init__(self, checkpoints_dir):
+        self.checkpoints_dir = checkpoints_dir
+        self.params_dir = os.path.join(checkpoints_dir, "params_plotting")
+        self.perf_dir = os.path.join(checkpoints_dir, "performance_plotting")
+        self.meta_dir = os.path.join(checkpoints_dir, "meta_params_plotting")
+
+        # Determine experiments and parameters from stored csv files
+        baseline_csv = os.path.join(self.params_dir, "baseline.csv")
+        if os.path.exists(baseline_csv):
+            df = pd.read_csv(baseline_csv)
+            self.parameter_names = [c for c in df.columns if c != "resource"]
+        else:
+            self.parameter_names = []
+
+        self.experiment_names = []
+        if os.path.exists(self.params_dir):
+            for f in os.listdir(self.params_dir):
+                if not f.endswith(".csv"):
+                    continue
+                name = os.path.splitext(f)[0]
+                if name == "baseline" or name.endswith("params"):
+                    continue
+                self.experiment_names.append(name)
+
+        self.colors = sns.color_palette("tab10", len(self.experiment_names))
+        self.baseline_color = "black"
+        self.experiment_colors = {
+            n: self.colors[i] for i, n in enumerate(self.experiment_names)
+        }
         self.xscale = "log"
 
     def set_colors(self, cp):
@@ -81,7 +100,9 @@ class Plotting:
             Color palette for experiments. Baseline will always be black
         """
         self.colors = cp
-        self.assign_colors()
+        self.experiment_colors = {
+            n: self.colors[i] for i, n in enumerate(self.experiment_names)
+        }
 
     def set_xlims(self, xlims):
         """
@@ -109,19 +130,18 @@ class Plotting:
         """
         if baseline_bool:
             color_patches = [
-                mpatches.Patch(
-                    color=self.parent.baseline.color, label=self.parent.baseline.name
-                )
+                mpatches.Patch(color=self.baseline_color, label="baseline")
             ]
         else:
             color_patches = []
 
-        color_patches = color_patches + [
-            mpatches.Patch(color=experiment.color, label=experiment.name)
-            for idx, experiment in enumerate(self.parent.experiments)
-            if experiment_bools[idx]
-        ]
-        ax.legend(handles=[cpatch for cpatch in color_patches])
+        for idx, name in enumerate(self.experiment_names):
+            if experiment_bools[idx]:
+                color_patches.append(
+                    mpatches.Patch(color=self.experiment_colors[name], label=name)
+                )
+
+        ax.legend(handles=color_patches)
 
     def apply_shared(self, p, baseline_bool=True, experiment_bools=None):
         """
@@ -137,7 +157,7 @@ class Plotting:
             whether to include each experiment in legend
         """
         if experiment_bools is None:
-            experiment_bools = [True] * len(self.parent.experiments)
+            experiment_bools = [True] * len(self.experiment_names)
 
         if type(p) is dict:
             for k, v in p.items():
@@ -155,14 +175,6 @@ class Plotting:
 
         return fig
 
-    def assign_colors(self):
-        """
-        Assigns colors to experiments
-        """
-        self.parent.baseline.color = "black"
-        for idx, experiment in enumerate(self.parent.experiments):
-            experiment.color = self.colors[idx]
-
     def plot_parameters_together(self):
         """Plot the parameters (Virtual Best and projection experiments)
         Create a single figure with a subfigure corresponding to each parameter
@@ -175,22 +187,20 @@ class Plotting:
             Dictionary of axis handles. The keys are the parameter names
         """
 
-        fig, axes_list = plt.subplots(len(self.parent.parameter_names), 1)
+        fig, axes_list = plt.subplots(len(self.parameter_names), 1)
 
         # Convert axes_list to a dictionary
         axes = dict()
-        for ind, param in enumerate(self.parent.parameter_names):
+        for ind, param in enumerate(self.parameter_names):
             axes[param] = axes_list[ind]
 
         # Get the best parameters from the Virtual Baseline
-        params_df, eval_df = self.parent.baseline.evaluate()
+        params_df = pd.read_csv(os.path.join(self.params_dir, "baseline.csv"))
+        eval_df = pd.read_csv(os.path.join(self.perf_dir, "baseline.csv"))
         eval_df = df_utils.monotone_df(eval_df, "resource", "response", 1)
 
-        # Before plotting, store params_df to a csv file
-        self.store_baseline_params(params_df)
-
         # plot the virtual baseline parameters
-        for param in self.parent.parameter_names:
+        for param in self.parameter_names:
             points = np.array(
                 [params_df.index.values, params_df[param].values]
             ).T.reshape(-1, 1, 2)
@@ -199,7 +209,7 @@ class Plotting:
             lc = LineCollection(segments, cmap="Spectral", norm=norm)
             # Set the values used for colormapping
             lc.set_array(eval_df["response"])
-            lc.set_label(self.parent.baseline.name)
+            lc.set_label("baseline")
             lc.set_linewidth(8)
             lc.set_alpha(0.75)
             line = axes[param].add_collection(lc)
@@ -209,40 +219,31 @@ class Plotting:
 
         cbar = fig.colorbar(line, ax=axes_list.ravel().tolist())
         cbar.ax.tick_params()
-        cbar.set_label(self.parent.response_key)
+        cbar.set_label("response")
 
         # Plot parameters from experiments
-        for experiment in self.parent.experiments:
-            # Choose whether to monotomize experiment parameters
-            logger.info("Plotting experiment %s", experiment)
-            if monotone:
-                res = experiment.evaluate_monotone()
-            else:
-                res = experiment.evaluate()
-            params_df = res[0]
-            eval_df = res[1]
+        for exp in self.experiment_names:
+            params_df = pd.read_csv(os.path.join(self.params_dir, f"{exp}.csv"))
+            preproc_file = os.path.join(self.params_dir, f"{exp}params.csv")
+            has_meta = os.path.exists(os.path.join(self.meta_dir, f"{exp}.csv"))
 
-            for param in self.parent.parameter_names:
-                if not hasattr(experiment, "meta_params"):
-                    # Store experiment parameters to csv before plotting
-                    self.store_expt_params(experiment.name, res)
-                    # Plot only if experiment does not have meta_parameters
+            for param in self.parameter_names:
+                if not has_meta:
                     _ = axes[param].plot(
                         params_df["resource"],
                         params_df[param],
                         "o-",
                         ms=2,
                         lw=1.5,
-                        color=experiment.color,
-                        label=experiment.name,
+                        color=self.experiment_colors[exp],
+                        label=exp,
                     )
-                if len(res) == 3:
-                    # Len=3 only if postprocessing was used. In that case also plot the recipe before the postprocessing was done
-                    preproc_params = res[2]
+                if os.path.exists(preproc_file):
+                    preproc_params = pd.read_csv(preproc_file)
                     axes[param].plot(
                         preproc_params["resource"],
                         preproc_params[param],
-                        color=experiment.color,
+                        color=self.experiment_colors[exp],
                         marker="x",
                         linestyle=":",
                         ms=2,
@@ -250,7 +251,7 @@ class Plotting:
                     )
 
         # Finally, add more properties such as labels, legend, etc.
-        for param in self.parent.parameter_names:
+        for param in self.parameter_names:
             axes[param].grid(axis="y")
             axes[param].set_ylabel(param)
             axes[param].set_xscale(self.xscale)
@@ -265,36 +266,6 @@ class Plotting:
 
         return fig, axes
 
-    def store_baseline_params(self, params_df):
-        """
-        Store dataframe which has the data that is plotted for baseline parameters, to a csv file
-        
-        Parameters:
-            params_df (pd.DataFrame): Dataframe with parameters that are plotted for baseline
-        """
-        save_loc = os.path.join(self.parent.here.checkpoints, "params_plotting")
-        if not os.path.exists(save_loc):
-            os.makedirs(save_loc)
-        save_file = os.path.join(save_loc, "baseline.csv")
-        params_df.to_csv(save_file)
-
-    def store_expt_params(self, experiment_name, res):
-        """
-        Store data that will be used for plotting parameters from experiment
-        Parameters:
-            experiment_name (str): Name of the experiment (i.e. experiment.name)
-            res (list): list with 2 or 3 items. res[0] is params_df (i.e. final params from expt), while res[2] (if it exists) contains parameters before post-processing.
-        """
-        save_loc = os.path.join(self.parent.here.checkpoints, "params_plotting")
-        save_file = os.path.join(save_loc, experiment_name + ".csv")
-        params_df = res[0]
-        params_df.to_csv(save_file)
-        if len(res) == 3:
-            # Len=3 only if postprocessing was used.
-            preproc_params = res[2]
-            save_file = os.path.join(save_loc, experiment_name + "params.csv")
-            preproc_params.to_csv(save_file)
-
     def plot_parameters_separate(self):
         """Plot the parameters (Virtual Best and projection experiments)
         Create a separate figure for each parameter
@@ -308,19 +279,17 @@ class Plotting:
         figs = dict()
         axes = dict()
 
-        for param in self.parent.parameter_names:
+        for param in self.parameter_names:
             # Create one figure for each parameter
             figs[param], axes[param] = plt.subplots(1, 1)
 
         # Get the best parameters from the Virtual Baseline
-        params_df, eval_df = self.parent.baseline.evaluate()
+        params_df = pd.read_csv(os.path.join(self.params_dir, "baseline.csv"))
+        eval_df = pd.read_csv(os.path.join(self.perf_dir, "baseline.csv"))
         eval_df = df_utils.monotone_df(eval_df, "resource", "response", 1)
 
-        # Before plotting, store params_df to a csv file
-        self.store_baseline_params(params_df)
-
         # plot the virtual baseline parameters
-        for param in self.parent.parameter_names:
+        for param in self.parameter_names:
             points = np.array(
                 [params_df.index.values, params_df[param].values]
             ).T.reshape(-1, 1, 2)
@@ -329,49 +298,41 @@ class Plotting:
             lc = LineCollection(segments, cmap="Spectral", norm=norm)
             # Set the values used for colormapping
             lc.set_array(eval_df["response"])
-            lc.set_label(self.parent.baseline.name)
+            lc.set_label("baseline")
             lc.set_linewidth(8)
             lc.set_alpha(0.75)
             line = axes[param].add_collection(lc)
             cbar = figs[param].colorbar(line, ax=axes[param])
             cbar.ax.tick_params()
-            cbar.set_label(self.parent.response_key)
+            cbar.set_label("response")
 
             _ = axes[param].plot(
                 params_df.index, params_df[param], "o", ms=2, mec="k", alpha=0.25
             )
 
         # Plot parameters from experiments
-        for experiment in self.parent.experiments:
-            # Choose whether to monotomize experiment parameters
-            if monotone:
-                res = experiment.evaluate_monotone()
-            else:
-                res = experiment.evaluate()
-            params_df = res[0]
-            eval_df = res[1]
+        for exp in self.experiment_names:
+            params_df = pd.read_csv(os.path.join(self.params_dir, f"{exp}.csv"))
+            preproc_file = os.path.join(self.params_dir, f"{exp}params.csv")
+            has_meta = os.path.exists(os.path.join(self.meta_dir, f"{exp}.csv"))
 
-            for param in self.parent.parameter_names:
-                if not hasattr(experiment, "meta_params"):
-                    # Store experiment parameters to csv file before plotting
-                    self.store_expt_params(experiment.name, res)
-                    # Plot only if experiment does not have meta_parameters
+            for param in self.parameter_names:
+                if not has_meta:
                     _ = axes[param].plot(
                         params_df["resource"],
                         params_df[param],
                         "o-",
                         ms=2,
                         lw=1.5,
-                        color=experiment.color,
-                        label=experiment.name,
+                        color=self.experiment_colors[exp],
+                        label=exp,
                     )
-                if len(res) == 3:
-                    # Len=3 only if postprocessing was used. In that case also plot the recipe before the postprocessing was done
-                    preproc_params = res[2]
+                if os.path.exists(preproc_file):
+                    preproc_params = pd.read_csv(preproc_file)
                     axes[param].plot(
                         preproc_params["resource"],
                         preproc_params[param],
-                        color=experiment.color,
+                        color=self.experiment_colors[exp],
                         marker="x",
                         linestyle=":",
                         ms=2,
@@ -379,7 +340,7 @@ class Plotting:
                     )
 
         # Finally, add more properties such as labels, legend, etc.
-        for param in self.parent.parameter_names:
+        for param in self.parameter_names:
             axes[param].grid(axis="y")
             axes[param].set_ylabel(param)
             axes[param].set_xscale(self.xscale)
@@ -395,15 +356,12 @@ class Plotting:
         """
         Plots the scaled distance between the recommended parameters and virtual best
         """
-        recipes, _ = self.parent.baseline.evaluate()
+        recipes = pd.read_csv(os.path.join(self.params_dir, "baseline.csv"))
 
         all_params_list = []
         count = 0
-        for experiment in self.parent.experiments:
-            if monotone:
-                params_df = experiment.evaluate_monotone()[0]
-            else:
-                params_df = experiment.evaluate()[0]
+        for exp in self.experiment_names:
+            params_df = pd.read_csv(os.path.join(self.params_dir, f"{exp}.csv"))
             params_df["exp_idx"] = count
             all_params_list.append(params_df)
             count += 1
@@ -414,7 +372,7 @@ class Plotting:
         for _, recipe in recipes.reset_index().iterrows():
             res_df = all_params[all_params["resource"] == recipe["resource"]]
             temp_df_eval = training.scaled_distance(
-                res_df, recipe, self.parent.parameter_names
+                res_df, recipe, self.parameter_names
             )
             temp_df_eval.loc[:, "resource"] = recipe["resource"]
             dist_params_list.append(temp_df_eval)
@@ -423,8 +381,8 @@ class Plotting:
         fig, axs = plt.subplots(1, 1)
         axs.plot(all_params["resource"], all_params["distance_scaled"])
 
-        for idx, experiment in enumerate(self.parent.experiments):
-            metaflag = hasattr(experiment, "meta_params")
+        for idx, exp in enumerate(self.experiment_names):
+            metaflag = os.path.exists(os.path.join(self.meta_dir, f"{exp}.csv"))
             params_df = all_params[all_params["exp_idx"] == idx]
             if metaflag:
                 axs.plot(
@@ -432,16 +390,16 @@ class Plotting:
                     params_df["distance_scaled"],
                     marker="x",
                     linestyle=":",
-                    color=experiment.color,
-                    label=experiment.name,
+                    color=self.experiment_colors[exp],
+                    label=exp,
                 )
             else:
                 axs.plot(
                     params_df["resource"],
                     params_df["distance_scaled"],
                     marker="o",
-                    color=experiment.color,
-                    label=experiment.name,
+                    color=self.experiment_colors[exp],
+                    label=exp,
                 )
 
         axs.grid(axis="y")
@@ -458,17 +416,11 @@ class Plotting:
         Plots the monotonized performance for each experiment (with the baseline)
         """
         # If saved data for virtual best exists, simply load it. Otherwise, compute the curve from baseline.
-        save_loc = os.path.join(self.parent.here.checkpoints, "performance_plotting")
+        save_loc = self.perf_dir
         if not os.path.exists(save_loc):
             os.makedirs(save_loc)
         save_file = os.path.join(save_loc, "baseline.csv")
-        if os.path.exists(save_file):
-            eval_df = pd.read_csv(save_file)
-        else:
-            _, eval_df = self.parent.baseline.evaluate()
-            eval_df = df_utils.monotone_df(eval_df, "resource", "response", 1)
-            # Store eval_df to a csv file
-            eval_df.to_csv(save_file)
+        eval_df = pd.read_csv(save_file)
 
         fig, axs = plt.subplots(1, 1)
         if plot_vb_CI:
@@ -486,23 +438,14 @@ class Plotting:
             "o-",
             ms=5,
             lw=1,
-            color=self.parent.baseline.color,
-            label=self.parent.baseline.name,
+            color=self.baseline_color,
+            label="baseline",
         )
 
-        for experiment in self.parent.experiments:
+        for exp in self.experiment_names:
             try:
-                save_file = os.path.join(save_loc, experiment.name + ".csv")
-                if os.path.exists(save_file):
-                    eval_df = pd.read_csv(save_file)
-                else:
-                    if monotone and not experiment.name == "SequentialSearch_cold":
-                        res = experiment.evaluate_monotone()
-                    else:
-                        res = experiment.evaluate()
-                    eval_df = res[1]
-                    # Store eval_df to a csv file
-                    eval_df.to_csv(save_file)
+                save_file = os.path.join(save_loc, f"{exp}.csv")
+                eval_df = pd.read_csv(save_file)
 
                 # Add confidence intervals
                 axs.fill_between(
@@ -510,7 +453,7 @@ class Plotting:
                     eval_df["response_lower"],
                     eval_df["response_upper"],
                     alpha=0.25,
-                    color=experiment.color,
+                    color=self.experiment_colors[exp],
                     lw=0,
                 )  # , label="CI Mean"+legend_str) # color='b',
                 # Add mean/median line
@@ -520,14 +463,14 @@ class Plotting:
                     "o-",
                     ms=5,
                     lw=1,
-                    color=experiment.color,
-                    label=experiment.name,
+                    color=self.experiment_colors[exp],
+                    label=exp,
                 )
             except:
                 continue
 
         axs.grid(axis="y")
-        axs.set_ylabel(self.parent.response_key)
+        axs.set_ylabel("response")
         axs.set_xscale(self.xscale)
         axs.set_xlabel("Resource")
         if hasattr(self, "xlims"):
@@ -544,71 +487,53 @@ class Plotting:
         axes = dict()
 
         # Location where meta parameter csv files are saved or are to be saved
-        save_loc = os.path.join(self.parent.here.checkpoints, "meta_params_plotting")
+        save_loc = self.meta_dir
         if not os.path.exists(save_loc):
             os.makedirs(save_loc)
 
-        for idx, experiment in enumerate(self.parent.experiments):
-            exp_figs = dict()
-            exp_axes = dict()
-            if hasattr(experiment, "meta_params"):
-                # LOAD metaparameter data for this experiment
-                # Check if metaparameter csv files exist. If yes, load them into memory. Otherwise, get from the experiment, load into memory, and store to scv
-                save_file = os.path.join(save_loc, experiment.name + ".csv")
-                if os.path.exists(save_file):
-                    metaparams_df = pd.read_csv(save_file)
-                else:
-                    metaparams_df = experiment.meta_params
-                    metaparams_df.sort_values(by="TotalBudget", inplace=True)
-                    metaparams_df.to_csv(save_file)
+        for idx, exp in enumerate(self.experiment_names):
+            exp_figs = {}
+            exp_axes = {}
+            save_file = os.path.join(save_loc, f"{exp}.csv")
+            if not os.path.exists(save_file):
+                continue
+            metaparams_df = pd.read_csv(save_file)
 
-                metaparams_preproc_df = None
-                if hasattr(experiment, "preproc_meta_params"):
-                    save_file = os.path.join(save_loc, experiment.name + "_preproc.csv")
-                    if os.path.exists(save_file):
-                        metaparams_preproc_df = pd.read_csv(save_file)
-                    else:
-                        metaparams_preproc_df = experiment.preproc_meta_params
-                        metaparams_preproc_df.sort_values(
-                            by=experiment.resource, inplace=True
-                        )
-                        metaparams_preproc_df.to_csv(save_file)
+            preproc_file = os.path.join(save_loc, f"{exp}_preproc.csv")
+            metaparams_preproc_df = None
+            if os.path.exists(preproc_file):
+                metaparams_preproc_df = pd.read_csv(preproc_file)
 
-                for param in experiment.meta_parameter_names:
-                    # Create a figure for each parameter and each experiment
-                    fig, axs = plt.subplots(1, 1)
+            meta_params_cols = [c for c in metaparams_df.columns if c != "TotalBudget"]
+            for param in meta_params_cols:
+                fig, axs = plt.subplots(1, 1)
+                axs.plot(
+                    metaparams_df["TotalBudget"],
+                    metaparams_df[param],
+                    color=self.experiment_colors[exp],
+                    marker="o",
+                    label=exp,
+                )
+                if (
+                    metaparams_preproc_df is not None
+                    and param in metaparams_preproc_df.columns
+                ):
                     axs.plot(
-                        metaparams_df["TotalBudget"],
-                        metaparams_df[param],
-                        color=experiment.color,
-                        marker="o",
-                        label=experiment.name,
+                        metaparams_preproc_df["TotalBudget"],
+                        metaparams_preproc_df[param],
+                        color=self.experiment_colors[exp],
+                        marker="x",
+                        linestyle="--",
                     )
-                    if (
-                        metaparams_preproc_df is not None
-                    ):  # hasattr(experiment, 'preproc_meta_params'):
-                        axs.plot(
-                            metaparams_preproc_df["TotalBudget"],
-                            metaparams_preproc_df[param],
-                            color=experiment.color,
-                            marker="x",
-                            linestyle="--",
-                        )
-                    axs.grid(axis="y")
-                    axs.set_ylabel(param)
-                    axs.set_xscale(self.xscale)
-                    axs.set_xlabel("TotalBudget")  # experiment.resource)
-                    axs.legend(loc="best")
-                    fig.tight_layout()
-                    exp_figs[param] = fig
-                    exp_axes[param] = axs
-                baseline_bool = False
-                experiment_bools = [False] * len(self.parent.experiments)
-                experiment_bools[idx] = True
-                # exp_plot_dict = self.apply_shared(exp_plot_dict,
-                #                                    baseline_bool=baseline_bool,
-                #                                    experiment_bools=experiment_bools)
-                # plots_dict[experiment.name] = exp_plot_dict
-            figs[experiment.name] = exp_figs
-            axes[experiment.name] = exp_axes
+                axs.grid(axis="y")
+                axs.set_ylabel(param)
+                axs.set_xscale(self.xscale)
+                axs.set_xlabel("TotalBudget")
+                axs.legend(loc="best")
+                fig.tight_layout()
+                exp_figs[param] = fig
+                exp_axes[param] = axs
+
+            figs[exp] = exp_figs
+            axes[exp] = exp_axes
         return figs, axes
