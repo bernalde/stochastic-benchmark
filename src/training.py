@@ -301,33 +301,29 @@ def evaluate(
     Parameters
     ----------
     df : pd.DataFrame
-        Dataframe with points that should be used for projection
+        Dataframe to do the projection from
     recipes : pd.DataFrame
-        recipes that should be tried out on df_eval
-    distance_fcn : callable
-        Function that defines distance from df_eval parameters to recipe parameters
-    parameter_names : list[str]
+        Recipes to try out
+    distance_fcn : Callable
+        Computes distance between parameters for projection
+    parameters_names : list[str]
     resource_col : str
     group_on : list[str]
-        Columns to group by before applying projection
+        list of columns that define an instance
 
     Returns
     -------
-    res : pd.DataFrame
+    df_eval : pd.DataFrame
         Dataframe with evaluated recipes
     """
-
-    def eval_single(df):
-        return evaluate_single(
-            df, recipes, distance_fcn, parameter_names, resource_col
-        )
-
-    if len(group_on) > 0:
-        # The result of apply will have an index based on the group_on keys.
-        # The dataframe returned by eval_single also contains the group_on columns.
-        # This causes a conflict in reset_index. We can drop the extra index levels.
-        res = df.groupby(group_on).apply(eval_single)
-        res = res.reset_index(level=group_on, drop=True).reset_index()
+    if len(group_on) == 0:
+        return evaluate_single(df, recipes, distance_fcn, parameter_names, resource_col)
     else:
-        res = eval_single(df)
-    return res
+
+        def eval_fcn(df):
+            return evaluate_single(
+                df, recipes, distance_fcn, parameter_names, resource_col
+            )
+
+        df_eval = df.groupby(group_on).apply(eval_fcn).reset_index(drop=True) # include_groups=False, Pandas Version Error
+        return df_eval
