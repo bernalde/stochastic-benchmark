@@ -108,7 +108,7 @@ def virtual_best(
             smooth,
         )
 
-    vb = df.groupby(groupby).apply(br, include_groups=False).reset_index()
+    vb = df.groupby(groupby).apply(br).reset_index() # include_groups=False, Pandas Version Error
     vb.drop("level_{}".format(len(groupby)), axis=1, inplace=True)
     return vb
 
@@ -138,8 +138,7 @@ def split_train_test(df: pd.DataFrame, split_on: List[str], ptrain: float):
                 lambda df: pd.DataFrame.from_dict(
                     {"train": [np.random.binomial(1, ptrain)]}
                 ),
-                include_groups=False
-            )
+            ) # include_groups=False # Pandas Version Error
             .merge(df, on=split_on)
         )
     else:
@@ -151,7 +150,7 @@ def split_train_test(df: pd.DataFrame, split_on: List[str], ptrain: float):
                     lambda df: pd.DataFrame.from_dict(
                         {"train": [np.random.binomial(1, ptrain)]}
                     ),
-                    include_groups=False
+                    # include_groups=False # Pandas Version Error
                 )
                 .merge(df, on=split_on)
             )
@@ -326,5 +325,5 @@ def evaluate(
                 df, recipes, distance_fcn, parameter_names, resource_col
             )
 
-        df_eval = df.groupby(group_on).apply(eval_fcn, include_groups=False).reset_index(drop=True)
+        df_eval = df.groupby(group_on).apply(eval_fcn).reset_index(drop=True) # include_groups=False, Pandas Version Error
         return df_eval
