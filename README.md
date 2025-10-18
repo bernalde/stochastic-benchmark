@@ -62,6 +62,11 @@ The current package implements the following functionality:
     pip install -r requirements.txt
     ```
 
+4. **Optional: Install Example Dependencies** (needed for some example notebooks):
+    ```bash
+    pip install -r requirements-examples.txt
+    ```
+
 ### Method 2: Downloading as a Zip Archive
 
 1. **Download the Repository**:
@@ -79,6 +84,11 @@ The current package implements the following functionality:
 3. **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
+    ```
+
+4. **Optional: Install Example Dependencies** (needed for some example notebooks):
+    ```bash
+    pip install -r requirements-examples.txt
     ```
 
 <!-- the following `pip` command can install this package -->
