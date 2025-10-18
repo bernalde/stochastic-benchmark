@@ -27,8 +27,10 @@ from utils_ws import *
 import wishart_runs #TODO I need to find the file I sent previous -> add to path if necessary
 
 alpha = '0.50'
-# datadir = '/home/bernalde/repos/stochastic-benchmark/examples/wishart_n_50_alpha_{}/data'.format(alpha)  #TODO set this to where the pickled datafiles are stored
-datadir = '/home/bernalde/repos/stochastic-benchmark/examples/wishart_n_50_alpha_{}/rerun_data'.format(alpha) #TODO set this to where the pickled datafiles are stored
+# Set datadir relative to the current file location
+# This assumes the data is in rerun_data/ subdirectory of the example folder
+script_dir = os.path.dirname(os.path.abspath(__file__))
+datadir = os.path.join(script_dir, 'rerun_data')  # Use relative path for portability
 
 
 def compress_order(df_single):
@@ -185,8 +187,8 @@ def postprocess_random(meta_params):
 def stoch_bench_setup():
     # Set up basic information 
     alpha = '0.5'
-    # path to working directory
-    here = os.path.join('/home/robin/stochastic-benchmark/examples', 'wishart_n_50_alpha_{}/'.format(alpha))
+    # path to working directory - use current directory (where notebook is located)
+    here = os.path.abspath(os.getcwd())
     parameter_names = ['sweeps', 'replicas', 'pcold', 'phot']
     instance_cols = ['instance'] #indicates how instances should be grouped, default is ['instance']
 

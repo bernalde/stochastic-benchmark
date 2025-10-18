@@ -19,8 +19,11 @@ alpha = '0.50'
 n_reads = 1001 #TODO change this if you want
 float_type = 'float32'
 penalty = 1e6
-datapath = '/home/bernalde/repos/stochastic-benchmark/examples/wishart_N=50_alpha={}/data'.format(alpha) #TODO change the directory where you want this
-rerun_datapath = '/home/bernalde/repos/stochastic-benchmark/examples/wishart_N=50_alpha={}/rerun_data'.format(alpha) #TODO change the directory where you want this
+
+# Use relative paths based on this script's location
+script_dir = os.path.dirname(os.path.abspath(__file__))
+datapath = os.path.join(script_dir, 'data')  # Relative path for portability
+rerun_datapath = os.path.join(script_dir, 'rerun_data')  # Relative path for portability
 
 class seen_result:
     def __init__(self):
@@ -60,10 +63,12 @@ def obj_fcn(norm_score, mean_time, replicas, s):
         return replicas * 1e-6 * mean_time * np.log(1 - s) / np.log(1 - norm_score)
 
 def load_instance(instance_num):
-    #TODO fill in your correct path here
-    base_dir = '/home/bernalde/repos/stochastic-benchmark-backup/data/wishart/instance_generation/wishart_planting_N_50_alpha_{}'.format(alpha)
+    # Load instance data - assumes instance files are in wishart_planting_N_50_alpha_0.50/ subdirectory
+    # relative to this script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    instance_dir = os.path.join(script_dir, 'wishart_planting_N_50_alpha_{}'.format(alpha))
     inst_name = 'wishart_planting_N_50_alpha_{}_inst_{}.txt'.format(alpha, instance_num)
-    filename = os.path.join(base_dir, inst_name)
+    filename = os.path.join(instance_dir, inst_name)
     
     rows = []
     cols = []
@@ -80,7 +85,7 @@ def load_instance(instance_num):
 
     qubo = csr_matrix((vals, (rows, cols)), shape = (N, N))
 
-    gs_filename = os.path.join(base_dir, 'gs_energies.txt')
+    gs_filename = os.path.join(instance_dir, 'gs_energies.txt')
     gs_dict = {}
     with open(gs_filename) as f:
         line = f.readline()
