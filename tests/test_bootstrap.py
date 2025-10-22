@@ -199,11 +199,11 @@ class TestBootstrapParameters:
         # Track whether update_rule was called correctly
         call_tracker = {'called': False, 'self_param': None, 'df_param': None}
         
-        def custom_update(self, df):
+        def custom_update(bs_params, df):
             call_tracker['called'] = True
-            call_tracker['self_param'] = self
+            call_tracker['self_param'] = bs_params
             call_tracker['df_param'] = df
-            self.shared_args['best_value'] = df['energy'].min()
+            bs_params.shared_args['best_value'] = df['energy'].min()
         
         metric_args = defaultdict(dict)
         metric_args['RTT'] = {}

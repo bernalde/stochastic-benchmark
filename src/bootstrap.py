@@ -35,14 +35,22 @@ class BootstrapParameters:
         We usually have 'resource_col, response_col, response_dir, best_value, random_value, confidence_level'
     update_rule : Callable[[BootstrapParameters, pd.DataFrame], None], optional
         Update rule function to modify shared_args and metric_args for each bootstrap group.
-        Should be defined as an unbound method with signature: def update_rule(self, df)
-        where self is the BootstrapParameters instance and df is the DataFrame.
+        
+        This is an UNBOUND function pattern where you define a function with signature:
+            def update_rule(bs_params, df)
+        
+        When called, the first parameter receives the BootstrapParameters instance,
+        and the second receives the DataFrame. Inside the function, access attributes via
+        the first parameter (e.g., bs_params.shared_args, bs_params.metric_args).
+        
+        The function is stored and called as: bs_params.update_rule(bs_params, df)
+        
         If None, uses default_update which sets best_value and RTT_factor.
         
         Example:
-            def custom_update(self, df):
-                self.shared_args['best_value'] = df['ground_truth'].iloc[0]
-                self.metric_args['RTT']['RTT_factor'] = df['time'].iloc[0]
+            def custom_update(bs_params, df):
+                bs_params.shared_args['best_value'] = df['ground_truth'].iloc[0]
+                bs_params.metric_args['RTT']['RTT_factor'] = df['time'].iloc[0]
     agg : Optional[str]
         Aggregation column name to use for weighted sampling, or None for uniform sampling.
     metric_args : DefaultDict[str, dict]
@@ -61,8 +69,10 @@ class BootstrapParameters:
     __post_init__()
         Post-initialization function.
     default_update(self, df)
-        Default update rule for the bootstrap method.
+        Default update rule for the bootstrap method (bound method).
         Sets best_value based on response direction and RTT_factor based on resource sum.
+        Note: This is a bound method, but when assigned to update_rule, it becomes
+        unbound and must be called as update_rule(bs_params, df).
     """
 
     shared_args: dict  #'resource_col, response_col, response_dir, best_value, random_value, confidence_level'
