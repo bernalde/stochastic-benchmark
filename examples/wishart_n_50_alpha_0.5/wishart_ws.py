@@ -12,6 +12,10 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 import sys
 from tqdm import tqdm
+import warnings
+
+# Filter known third-party warnings
+warnings.filterwarnings('ignore', message='pkg_resources is deprecated')
 
 sys.path.append('../../src') #TODO set path to point to src of stochastic-benchmark
 import bootstrap
@@ -209,16 +213,16 @@ def stoch_bench_setup():
                     'response_dir':-1,\
                     'confidence_level':68,\
                     'random_value':0.}
-    metric_args = {}
+    metric_args = defaultdict(dict)
     metric_args['Response'] = {'opt_sense':-1}
     metric_args['SuccessProb'] = {'gap':1.0, 'response_dir':-1}
     metric_args['RTT'] = {'fail_value': np.nan, 'RTT_factor':1.,\
                             'gap':1.0, 's':0.99}
 
-    def update_rules(self, df):  #These update the bootstrap parameters for each group 
+    def update_rules(df):  # Update the bootstrap parameters for each group 
         GTMinEnergy = df['GTMinEnergy'].iloc[0] 
-        self.shared_args['best_value'] = GTMinEnergy #update best value for each instance
-        self.metric_args['RTT']['RTT_factor'] = df['MeanTime'].iloc[0]
+        shared_args['best_value'] = GTMinEnergy  # Update best value for each instance
+        metric_args['RTT']['RTT_factor'] = df['MeanTime'].iloc[0]
 
     agg = 'count' #aggregated column
     #success metric we want to calculate
@@ -276,7 +280,7 @@ def stoch_bench_setup():
     resource_values = list(recipes['resource'])
     budgets = [i*10**j for i in [1, 1.5, 2, 3, 5, 7]
                 for j in [3, 4, 5]] + [1e6]
-    budgets = np.unique([take_closest(resource_values, b) for b in budgets])
+    budgets = list(np.unique([take_closest(resource_values, b) for b in budgets]))
 
     # which columns determin the order in sequential search experiments
     ssOrderCols0 = ['warmstart=0_hpo_order={}'.format(hpo_trial) for hpo_trial in range(10)] 
@@ -310,8 +314,9 @@ def stoch_bench_setup():
     sb.run_StaticRecommendationExperiment(sb.experiments[0])
     sb.run_StaticRecommendationExperiment(sb.experiments[1])
 
-    testing_results = sb.interp_results[sb.interp_results['train'] == 0].copy()
-    testing_instances = list(np.unique(testing_results['instance']))
+    if sb.interp_results is not None:
+        testing_results = sb.interp_results[sb.interp_results['train'] == 0].copy()
+        testing_instances = list(np.unique(testing_results['instance']))
     # for idx in [5, 6]:
     #     parameters_list = sb.experiments[idx].list_runs()
     #     if idx == 5:
@@ -422,8 +427,9 @@ def process_rerun(sb, results_dict):
         ret_list.append(ret)
     try:
         ret = pd.concat(ret_list, ignore_index=True)
-    except:
-        print('failing external loop')
+    except Exception as e:
+        print(f'failing external loop: {e}')
+        ret = pd.DataFrame()  # Return empty DataFrame on failure
     return ret
         
 def main():

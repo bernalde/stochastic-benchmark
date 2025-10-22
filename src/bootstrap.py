@@ -39,8 +39,8 @@ class BootstrapParameters:
         Aggregation function to use for the bootstrap.
     metric_args : DefaultDict[str, dict]
         Dictionary of metric arguments to pass to the success_metrics functions.
-    success_metrics : dict
-        Dictionary of success_metrics functions to use.
+    success_metrics : List
+        List of success_metrics classes to use.
     bootstrap_iterations : int
         Number of bootstrap iterations to perform.
     downsample : int
@@ -62,7 +62,7 @@ class BootstrapParameters:
     metric_args: DefaultDict[str, dict] = field(
         default_factory=lambda: defaultdict(lambda: None)
     )
-    success_metrics: dict = field(default_factory=lambda: [success_metrics.PerfRatio])
+    success_metrics: List = field(default_factory=lambda: [success_metrics.PerfRatio])
     bootstrap_iterations: int = 1000
     downsample: int = 10
     keep_cols: List = field(default_factory=lambda: [])

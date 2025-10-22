@@ -119,7 +119,7 @@ def run_pysa(args, instance_num, pbar=None):
             #TODO double check these!!!
             min_temp = 2 * np.min(np.abs(qubo[np.nonzero(qubo)])) / np.log(100/pcold)
     #         min_temp_cal = 2*min(sum(abs(i) for i in qubo)) / np.log(100/p_cold)
-            max_temp = 2*max(sum(abs(i) for i in qubo.A)) / np.log(100/phot)
+            max_temp = 2 * np.max(np.abs(qubo.A).sum(axis=1)) / np.log(100/phot)
             solver = Solver(problem=qubo.A, problem_type='ising', float_type=float_type)
             res = solver.metropolis_update(
                 num_sweeps = sweeps,
@@ -140,7 +140,7 @@ def run_pysa(args, instance_num, pbar=None):
     else:
         min_temp = 2 * np.min(np.abs(qubo[np.nonzero(qubo)])) / np.log(100/pcold)
 #         min_temp_cal = 2*min(sum(abs(i) for i in qubo)) / np.log(100/p_cold)
-        max_temp = 2*max(sum(abs(i) for i in qubo.A)) / np.log(100/phot)
+        max_temp = 2 * np.max(np.abs(qubo.A).sum(axis=1)) / np.log(100/phot)
         solver = Solver(problem=qubo.A, problem_type='ising', float_type=float_type)
         res = solver.metropolis_update(
             num_sweeps = sweeps,
@@ -191,7 +191,7 @@ def rerun_pysa(params, instance_num):
         print('Trying to run pysa for parameters ', params)
         min_temp = 2 * np.min(np.abs(qubo[np.nonzero(qubo)])) / np.log(100/pcold)
 #         min_temp_cal = 2*min(sum(abs(i) for i in qubo)) / np.log(100/p_cold)
-        max_temp = 2*max(sum(abs(i) for i in qubo.A)) / np.log(100/phot)
+        max_temp = 2 * np.max(np.abs(qubo.A).sum(axis=1)) / np.log(100/phot)
         solver = Solver(problem=qubo.A, problem_type='ising', float_type=float_type)
         res = solver.metropolis_update(
             num_sweeps = sweeps,
@@ -297,7 +297,7 @@ def rerun_outer(instance_num):
             rerun_pysa(params, instance_num)
 
 if __name__ == '__main__':
-    instance_num = int(os.getenv('PBS_ARRAY_INDEX'))
+    instance_num = int(os.getenv('PBS_ARRAY_INDEX', '0'))  # Default to '0' if not set
     rerun_outer(instance_num)
 
     # #base_num = 500

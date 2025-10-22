@@ -11,6 +11,7 @@ import pandas as pd
 from random import choice
 import seaborn.objects as so
 import seaborn as sns
+from typing import Optional
 import warnings
 import logging
 
@@ -1286,10 +1287,10 @@ class stochastic_benchmark:
         self.response_dir = response_dir
 
         ## Dataframes needed for experiments and baselines
-        self.bs_results = None
-        self.interp_results = None
-        self.training_stats = None
-        self.testing_stats = None
+        self.bs_results: Optional[pd.DataFrame] = None
+        self.interp_results: Optional[pd.DataFrame] = None
+        self.training_stats: Optional[pd.DataFrame] = None
+        self.testing_stats: Optional[pd.DataFrame] = None
 
         self.experiments = []
 
@@ -1337,6 +1338,7 @@ class stochastic_benchmark:
             logger.info("Bootstrapped results is already populated: doing nothing.")
             return
 
+        print("Loading and bootstrapping experimental data...")
         if self.reduce_mem:
             self.raw_data = glob.glob(os.path.join(self.here.raw_data, "*.pkl"))
 
@@ -1457,6 +1459,7 @@ class stochastic_benchmark:
                 "Bootstrapped results needs to be populated before interpolation."
             )
 
+        print("Interpolating results across resource budgets...")
         if self.reduce_mem:
             logger.info("Interpolating results with parameters: %s", iParams)
             self.interp_results = interpolate.Interpolate_reduce_mem(
@@ -1488,6 +1491,7 @@ class stochastic_benchmark:
                 "Interpolated results needs to be populated before computing stats."
             )
 
+        print("Computing training/testing statistics...")
         if "train" not in self.interp_results.columns:
             self.interp_results = training.split_train_test(
                 self.interp_results, self.instance_cols, train_test_split
@@ -1713,6 +1717,7 @@ class stochastic_benchmark:
         """
         Adds virtual best baseline
         """
+        print("Computing virtual best baseline...")
         logger.info("Runnng baseline")
         self.baseline = VirtualBestBaseline(self)
 
@@ -1736,6 +1741,7 @@ class stochastic_benchmark:
         ProjectionExperiment
             Experiment object
         """
+        print(f"  ├─ Running ProjectionExperiment from {project_from}...")
         logger.info("Running projection experiment")
         self.experiments.append(
             ProjectionExperiment(self, project_from, postprocess, postprocess_name)
@@ -1747,6 +1753,7 @@ class stochastic_benchmark:
         """
         Runs random search experiments
         """
+        print("  ├─ Running RandomSearchExperiment...")
         logger.info("Running random search experiment")
         self.experiments.append(
             RandomSearchExperiment(
@@ -1779,6 +1786,8 @@ class stochastic_benchmark:
         SequentialSearchExperiment
             Experiment object
         """
+        id_label = f" ({id_name})" if id_name else ""
+        print(f"  ├─ Running SequentialSearchExperiment{id_label}...")
         logger.info("Running sequential search experiment")
         self.experiments.append(
             SequentialSearchExperiment(
