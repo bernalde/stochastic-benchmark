@@ -1,4 +1,4 @@
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import copy
 import glob
 from math import floor
@@ -11,7 +11,7 @@ import pandas as pd
 from random import choice
 import seaborn.objects as so
 import seaborn as sns
-from typing import Optional
+from typing import Optional, Union, List
 import warnings
 import logging
 
@@ -63,7 +63,7 @@ def default_bootstrap(
         "random_value": 0.0,
     }
 
-    metric_args = {}
+    metric_args = defaultdict(dict)
     metric_args["Response"] = {"opt_sense": -1}
     metric_args["SuccessProb"] = {"gap": 1.0, "response_dir": -1}
     metric_args["RTT"] = {
@@ -80,7 +80,11 @@ def default_bootstrap(
         success_metrics.Resource,
         success_metrics.RTT,
     ]
-    bsParams = bootstrap.BootstrapParameters(shared_args, metric_args, sms)
+    bsParams = bootstrap.BootstrapParameters(
+        shared_args=shared_args,
+        metric_args=metric_args,
+        success_metrics=sms
+    )
 
     bs_iter_class = bootstrap.BSParams_iter()
     bsparams_iter = bs_iter_class(bsParams, nboots)
@@ -126,6 +130,7 @@ class Experiment:
     """
 
     def __init__(self):
+        self.parent = None  # To be set by subclasses
         return
 
     def evaluate(self):
@@ -145,21 +150,33 @@ class Experiment:
             Dataframe of responses, renamed to generic columns for compatibility
         """
         res = self.evaluate()
+        params_df = None
+        eval_df = None
+        preproc_params = None
+        
         if len(res) == 2:
             params_df, eval_df = res
         elif len(res) == 3:
             params_df, eval_df, preproc_params = res
+        
+        if params_df is None or eval_df is None:
+            raise ValueError("evaluate() returned invalid result")
+        
         joint = params_df.merge(eval_df, on="resource")
         joint = df_utils.monotone_df(joint, "resource", "response", 1)
+        
+        if self.parent is None:
+            raise AttributeError("parent must be set before calling evaluate_monotone")
+        
         params_df = joint.loc[:, ["resource"] + self.parent.parameter_names]
         eval_df = joint.loc[
             :, ["resource", "response", "response_lower", "response_upper"]
         ]
 
-        if len(res) == 2:
-            return params_df, eval_df
-        elif len(res) == 3:
+        if len(res) == 3 and preproc_params is not None:
             return params_df, eval_df, preproc_params
+        else:
+            return params_df, eval_df
 
 
 class ProjectionExperiment(Experiment):
@@ -1287,7 +1304,7 @@ class stochastic_benchmark:
         self.response_dir = response_dir
 
         ## Dataframes needed for experiments and baselines
-        self.bs_results: Optional[pd.DataFrame] = None
+        self.bs_results: Union[pd.DataFrame, List[str], None] = None
         self.interp_results: Optional[pd.DataFrame] = None
         self.training_stats: Optional[pd.DataFrame] = None
         self.testing_stats: Optional[pd.DataFrame] = None
@@ -1428,20 +1445,21 @@ class stochastic_benchmark:
             self.bs_results = bootstrap.Bootstrap(
                 self.raw_data, group_on, bsParams_iter, progress_dir
             )
-            self.bs_results.to_pickle(self.here.bootstrap)
+            if isinstance(self.bs_results, pd.DataFrame):
+                self.bs_results.to_pickle(self.here.bootstrap)
 
     def set_Bootstrap(self, bs_results):
         """
         Sets bootstrap results without doing anything
         """
-        if type(bs_results) == str:
+        if isinstance(bs_results, str):
             self.bs_results = pd.read_pickle(bs_results)
-        elif type(bs_results) == pd.DataFrame:
+        elif isinstance(bs_results, pd.DataFrame):
             self.bs_results = bs_results
-        elif type(bs_results) == list:
-            if type(bs_results[0]) == pd.DataFrame:
+        elif isinstance(bs_results, list):
+            if isinstance(bs_results[0], pd.DataFrame):
                 self.bs_results = pd.concat(bs_results, ignore_index=True)
-            elif type(bs_results[0]) == str:
+            elif isinstance(bs_results[0], str):
                 self.bs_results = bs_results
 
     def run_Interpolate(self, iParams):
@@ -1462,14 +1480,24 @@ class stochastic_benchmark:
         print("Interpolating results across resource budgets...")
         if self.reduce_mem:
             logger.info("Interpolating results with parameters: %s", iParams)
+            if not isinstance(self.bs_results, list):
+                raise TypeError(
+                    f"Expected list for reduce_mem mode but got {type(self.bs_results)}"
+                )
             self.interp_results = interpolate.Interpolate_reduce_mem(
                 self.bs_results, iParams, self.parameter_names + self.instance_cols
             )
         else:
             logger.info("Interpolating results with parameters: %s", iParams)
+            if not isinstance(self.bs_results, pd.DataFrame):
+                raise TypeError(
+                    f"Expected DataFrame for non-reduce_mem mode but got {type(self.bs_results)}"
+                )
             self.interp_results = interpolate.Interpolate(
                 self.bs_results, iParams, self.parameter_names + self.instance_cols
             )
+        
+        assert self.interp_results is not None, "Interpolation failed to produce results"
 
         base = names.param2filename({"Key": self.response_key}, "")
         CIlower = names.param2filename(
@@ -1497,6 +1525,8 @@ class stochastic_benchmark:
                 self.interp_results, self.instance_cols, train_test_split
             )
             self.interp_results.to_pickle(self.here.interpolate)
+        
+        assert self.interp_results is not None, "interp_results was unexpectedly None"
 
         if self.training_stats is None:
             if os.path.exists(self.here.training_stats) and self.recover:
@@ -1513,7 +1543,9 @@ class stochastic_benchmark:
                     stat_params,
                     self.parameter_names + ["boots", "resource"],
                 )
-                self.training_stats.to_pickle(self.here.training_stats)
+        
+        if self.training_stats is not None:
+            self.training_stats.to_pickle(self.here.training_stats)
 
         if self.testing_stats is None:
             if os.path.exists(self.here.testing_stats) and self.recover:
@@ -1532,7 +1564,9 @@ class stochastic_benchmark:
                         stat_params,
                         self.parameter_names + ["boots", "resource"],
                     )
-                    self.testing_stats.to_pickle(self.here.testing_stats)
+        
+        if self.testing_stats is not None:
+            self.testing_stats.to_pickle(self.here.testing_stats)
 
     def populate_training_stats(self):
         """
@@ -1551,7 +1585,8 @@ class stochastic_benchmark:
                     self.stat_params,
                     self.parameter_names + ["boots", "resource"],
                 )
-                self.training_stats.to_pickle(self.here.training_stats)
+                if self.training_stats is not None:
+                    self.training_stats.to_pickle(self.here.training_stats)
 
     def populate_testing_stats(self):
         """
@@ -1573,7 +1608,8 @@ class stochastic_benchmark:
                         self.stat_params,
                         self.parameter_names + ["boots", "resource"],
                     )
-                    self.testing_stats.to_pickle(self.here.testing_stats)
+                    if self.testing_stats is not None:
+                        self.testing_stats.to_pickle(self.here.testing_stats)
 
     def populate_interp_results(self):
         """
@@ -1582,7 +1618,7 @@ class stochastic_benchmark:
         if self.interp_results is None:
             if os.path.exists(self.here.interpolate) and self.recover:
                 self.interp_results = pd.read_pickle(self.here.interpolate)
-                if "train" not in self.interp_results.columns:
+                if self.interp_results is not None and "train" not in self.interp_results.columns:
                     self.interp_results = training.split_train_test(
                         self.interp_results, self.instance_cols, self.train_test_split
                     )
@@ -1592,6 +1628,10 @@ class stochastic_benchmark:
                 # print(self.bs_results)
                 if self.reduce_mem:
                     logger.info("Interpolating results with parameters: %s", self.iParams)
+                    if not isinstance(self.bs_results, list):
+                        raise TypeError(
+                            f"Expected list for reduce_mem mode but got {type(self.bs_results)}"
+                        )
                     self.interp_results = interpolate.Interpolate_reduce_mem(
                         self.bs_results,
                         self.iParams,
@@ -1599,11 +1639,17 @@ class stochastic_benchmark:
                     )
                 else:
                     logger.info("Interpolating results with parameters: %s", self.iParams)
+                    if not isinstance(self.bs_results, pd.DataFrame):
+                        raise TypeError(
+                            f"Expected DataFrame for non-reduce_mem mode but got {type(self.bs_results)}"
+                        )
                     self.interp_results = interpolate.Interpolate(
                         self.bs_results,
                         self.iParams,
                         self.parameter_names + self.instance_cols,
                     )
+                
+                assert self.interp_results is not None, "Interpolation failed to produce results"
 
                 base = names.param2filename({"Key": self.response_key}, "")
                 CIlower = names.param2filename(
@@ -1621,8 +1667,8 @@ class stochastic_benchmark:
                 )
                 self.interp_results.to_pickle(self.here.interpolate)
                 self.bs_results = None
-            else:
-                self.populate_bs_results(self.bsParams_iter, self.group_name_fcn)
+            # else:
+            #     self.populate_bs_results(self.bsParams_iter, self.group_name_fcn)
 
     # def populate_bs_results(self, group_name_fcn=None):
     #     """

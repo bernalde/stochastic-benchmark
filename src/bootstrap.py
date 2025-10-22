@@ -57,7 +57,7 @@ class BootstrapParameters:
     """
 
     shared_args: dict  #'resource_col, response_col, response_dir, best_value, random_value, confidence_level'
-    update_rule: Callable[[pd.DataFrame], None] = field()
+    update_rule: Optional[Callable[[pd.DataFrame], None]] = None
     agg: Optional[str] = None
     metric_args: DefaultDict[str, dict] = field(
         default_factory=lambda: defaultdict(dict)
@@ -72,7 +72,7 @@ class BootstrapParameters:
         temp_metric_args.update(self.metric_args)
         self.metric_args = temp_metric_args
 
-        if not hasattr(self, "update_rule"):
+        if self.update_rule is None:
             self.update_rule = self.default_update
 
     def default_update(self, df):
