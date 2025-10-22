@@ -1303,7 +1303,7 @@ class stochastic_benchmark:
         self.response_dir = response_dir
 
         ## Dataframes needed for experiments and baselines
-        self.bs_results: Union[pd.DataFrame, List[str], None] = None
+        self.bs_results: Optional[Union[pd.DataFrame, List[str]]] = None
         self.interp_results: Optional[pd.DataFrame] = None
         self.training_stats: Optional[pd.DataFrame] = None
         self.testing_stats: Optional[pd.DataFrame] = None
