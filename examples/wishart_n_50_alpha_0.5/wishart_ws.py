@@ -219,10 +219,10 @@ def stoch_bench_setup():
     metric_args['RTT'] = {'fail_value': np.nan, 'RTT_factor':1.,\
                             'gap':1.0, 's':0.99}
 
-    def update_rules(df):  # Update the bootstrap parameters for each group 
+    def update_rules(self, df):  # Update the bootstrap parameters for each group 
         GTMinEnergy = df['GTMinEnergy'].iloc[0] 
-        shared_args['best_value'] = GTMinEnergy  # Update best value for each instance
-        metric_args['RTT']['RTT_factor'] = df['MeanTime'].iloc[0]
+        self.shared_args['best_value'] = GTMinEnergy  # Update best value for each instance
+        self.metric_args['RTT']['RTT_factor'] = df['MeanTime'].iloc[0]
 
     agg = 'count' #aggregated column
     #success metric we want to calculate

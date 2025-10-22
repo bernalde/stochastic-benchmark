@@ -57,7 +57,7 @@ class BootstrapParameters:
     """
 
     shared_args: dict  #'resource_col, response_col, response_dir, best_value, random_value, confidence_level'
-    update_rule: Optional[Callable[[pd.DataFrame], None]] = None
+    update_rule: Optional[Callable[['BootstrapParameters', pd.DataFrame], None]] = None
     agg: Optional[str] = None
     metric_args: DefaultDict[str, dict] = field(
         default_factory=lambda: defaultdict(dict)
@@ -73,7 +73,7 @@ class BootstrapParameters:
         self.metric_args = temp_metric_args
 
         if self.update_rule is None:
-            self.update_rule = self.default_update
+            self.update_rule = BootstrapParameters.default_update
 
     def default_update(self, df):
         if self.shared_args["response_dir"] == -1:  # Minimization
