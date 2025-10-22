@@ -1340,7 +1340,7 @@ class stochastic_benchmark:
         # Recursive file recovery
         # Note: Bootstrap results are NOT auto-populated here. They must be explicitly
         # created via run_Bootstrap() method to give users control over when bootstrapping
-        # occurs. This design was established in commit 857574f (Nov 2022).
+        # occurs. This design was established in November 2022.
         while any(
             [
                 v is None
