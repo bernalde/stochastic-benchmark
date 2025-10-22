@@ -11,9 +11,12 @@ import pandas as pd
 from random import choice
 import seaborn.objects as so
 import seaborn as sns
-from typing import Optional, Union, List
+from typing import Optional, Union, List, TYPE_CHECKING
 import warnings
 import logging
+
+if TYPE_CHECKING:
+    from typing import Any
 
 
 import bootstrap
@@ -114,8 +117,8 @@ class Experiment:
 
     Attributes
     ----------
-    parent : Experiment
-        Parent experiment
+    parent : stochastic_benchmark
+        Parent stochastic_benchmark instance (set by subclasses)
     name : str
         Name of experiment
 
@@ -128,10 +131,9 @@ class Experiment:
     evaluate_monotone()
         Monotonizes the response and parameters from evaluate
     """
-
-    def __init__(self):
-        self.parent = None  # To be set by subclasses
-        return
+    
+    if TYPE_CHECKING:
+        parent: Any  # Set by subclasses to stochastic_benchmark instance
 
     def evaluate(self):
         raise NotImplementedError(
@@ -164,9 +166,6 @@ class Experiment:
         
         joint = params_df.merge(eval_df, on="resource")
         joint = df_utils.monotone_df(joint, "resource", "response", 1)
-        
-        if self.parent is None:
-            raise AttributeError("parent must be set before calling evaluate_monotone")
         
         params_df = joint.loc[:, ["resource"] + self.parent.parameter_names]
         eval_df = joint.loc[
