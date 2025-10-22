@@ -1479,8 +1479,9 @@ class stochastic_benchmark:
             return
 
         if self.bs_results is None:
-            raise Exception(
-                "Bootstrapped results needs to be populated before interpolation."
+            raise ValueError(
+                "bs_results is None - bootstrapped results must be populated before interpolation. "
+                "Ensure Bootstrap() or initBootstrap() has been called successfully."
             )
 
         print("Interpolating results across resource budgets...")
@@ -1488,7 +1489,7 @@ class stochastic_benchmark:
             logger.info("Interpolating results with parameters: %s", iParams)
             if not isinstance(self.bs_results, list):
                 raise TypeError(
-                    f"Expected list for reduce_mem mode but got {type(self.bs_results)}"
+                    f"Expected list for reduce_mem mode but got {type(self.bs_results).__name__}"
                 )
             self.interp_results = interpolate.Interpolate_reduce_mem(
                 self.bs_results, iParams, self.parameter_names + self.instance_cols
@@ -1497,7 +1498,7 @@ class stochastic_benchmark:
             logger.info("Interpolating results with parameters: %s", iParams)
             if not isinstance(self.bs_results, pd.DataFrame):
                 raise TypeError(
-                    f"Expected DataFrame for non-reduce_mem mode but got {type(self.bs_results)}"
+                    f"Expected DataFrame for non-reduce_mem mode but got {type(self.bs_results).__name__}"
                 )
             self.interp_results = interpolate.Interpolate(
                 self.bs_results, iParams, self.parameter_names + self.instance_cols
@@ -1636,7 +1637,7 @@ class stochastic_benchmark:
                     logger.info("Interpolating results with parameters: %s", self.iParams)
                     if not isinstance(self.bs_results, list):
                         raise TypeError(
-                            f"Expected list for reduce_mem mode but got {type(self.bs_results)}"
+                            f"Expected list for reduce_mem mode but got {type(self.bs_results).__name__}"
                         )
                     self.interp_results = interpolate.Interpolate_reduce_mem(
                         self.bs_results,
@@ -1647,7 +1648,7 @@ class stochastic_benchmark:
                     logger.info("Interpolating results with parameters: %s", self.iParams)
                     if not isinstance(self.bs_results, pd.DataFrame):
                         raise TypeError(
-                            f"Expected DataFrame for non-reduce_mem mode but got {type(self.bs_results)}"
+                            f"Expected DataFrame for non-reduce_mem mode but got {type(self.bs_results).__name__}"
                         )
                     self.interp_results = interpolate.Interpolate(
                         self.bs_results,
