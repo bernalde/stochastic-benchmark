@@ -32,7 +32,7 @@ def dummy_update_rule(self, df):
     """Default dummy update rule for testing.
     
     Note: update_rule functions should use signature (self, df) where
-    self is the BootstrapParameters instance. This is an unbound method pattern.
+    self is the BootstrapParameters instance. The function will be called as bs_params.update_rule(bs_params, df).
     """
     pass
 
