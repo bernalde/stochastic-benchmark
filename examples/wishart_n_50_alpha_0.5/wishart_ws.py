@@ -428,11 +428,26 @@ def process_rerun(sb, results_dict):
     for k in tqdm(results_dict.keys()):
         ret = prepare_param(k)
         ret_list.append(ret)
+    
+    # Filter out None values that may be returned when res_list is empty
+    ret_list = [r for r in ret_list if r is not None]
+    
+    if len(ret_list) == 0:
+        print('Warning: No valid results to concatenate. Returning empty DataFrame.')
+        return pd.DataFrame()
+    
     try:
         ret = pd.concat(ret_list, ignore_index=True)
-    except Exception as e:
-        print(f'failing external loop: {e}')
-        ret = pd.DataFrame()  # Return empty DataFrame on failure
+    except ValueError as e:
+        # Raised when DataFrames have incompatible columns or no objects to concatenate
+        print(f'Error concatenating results: {e}')
+        print(f'Number of DataFrames: {len(ret_list)}')
+        raise
+    except TypeError as e:
+        # Raised when ret_list contains non-DataFrame objects
+        print(f'Error: ret_list contains invalid objects: {e}')
+        print(f'Types in ret_list: {[type(r) for r in ret_list]}')
+        raise
     return ret
         
 def main():
