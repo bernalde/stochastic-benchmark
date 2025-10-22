@@ -103,8 +103,9 @@ class TestBootstrapParameters:
         # Check that metric_args is a defaultdict
         assert isinstance(params.metric_args, defaultdict)
         
-        # Check that accessing non-existent key returns None
-        assert params.metric_args['NonExistent'] is None
+        # Check that accessing non-existent key returns empty dict
+        assert params.metric_args['NonExistent'] == {}
+        assert isinstance(params.metric_args['NonExistent'], dict)
         
         # Check that update_rule is set to default if not provided
         assert hasattr(params, 'update_rule')
