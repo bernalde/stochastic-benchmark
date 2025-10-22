@@ -117,8 +117,9 @@ class Experiment:
 
     Attributes
     ----------
-    parent : stochastic_benchmark
-        Parent stochastic_benchmark instance (set by subclasses)
+    parent : 'stochastic_benchmark'
+        Parent stochastic_benchmark instance. This is a forward reference to the
+        stochastic_benchmark class defined later in this module.
     name : str
         Name of experiment
 
@@ -187,7 +188,8 @@ class ProjectionExperiment(Experiment):
 
     Attributes
     ----------
-    parent : stochatic_benchmark
+    parent : 'stochastic_benchmark'
+        Parent stochastic_benchmark instance
     name : str
         name for pretty printing
     project_from : str
@@ -528,7 +530,8 @@ class StaticRecommendationExperiment(Experiment):
 
     Attributes
     ----------
-    parent : stochastic_benchmark
+    parent : 'stochastic_benchmark'
+        Parent stochastic_benchmark instance
     name : str
         name for pretty printing
     rec_params : pd.DataFrame
@@ -661,7 +664,8 @@ class RandomSearchExperiment(Experiment):
 
     Attributes
     ----------
-    parent : stochatic_benchmark
+    parent : 'stochastic_benchmark'
+        Parent stochastic_benchmark instance
     name : str
         name for pretty printing
     meta_params : pd.DataFrame
@@ -811,7 +815,8 @@ class SequentialSearchExperiment(Experiment):
 
     Attributes
     ----------
-    parent : stochatic_benchmark
+    parent : 'stochastic_benchmark'
+        Parent stochastic_benchmark instance
     name : str
         name for pretty printing
     meta_params : pd.DataFrame
