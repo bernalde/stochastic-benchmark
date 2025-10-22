@@ -345,6 +345,10 @@ def apply_allocations(
             if len(df_experiment) >= 1:
                 final_values.append(df_experiment)
 
+            # Note: Previous sequential implementation (manual iteration with res_list)
+            # was replaced with applyParallel for better performance and cleaner error handling.
+            # See git history for the sequential loop pattern if needed for debugging.
+
     return pd.concat(final_values, ignore_index=True)
 
 

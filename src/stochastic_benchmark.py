@@ -1338,6 +1338,9 @@ class stochastic_benchmark:
         self.train_test_split = train_test_split
 
         # Recursive file recovery
+        # Note: Bootstrap results are NOT auto-populated here. They must be explicitly
+        # created via run_Bootstrap() method to give users control over when bootstrapping
+        # occurs. This design was established in commit 857574f (Nov 2022).
         while any(
             [
                 v is None
@@ -1665,6 +1668,10 @@ class stochastic_benchmark:
                 )
                 self.interp_results.to_pickle(self.here.interpolate)
                 self.bs_results = None
+            # Note: If neither interp_results nor bs_results exist, they must be explicitly
+            # created via run_Bootstrap(). Auto-population was removed in commit 857574f (Nov 2022)
+            # to give users explicit control. For reference implementation of auto-population
+            # with reduce_mem support, see git history.
 
     def evaluate_without_bootstrap(self, df, group_on):
         """ "
