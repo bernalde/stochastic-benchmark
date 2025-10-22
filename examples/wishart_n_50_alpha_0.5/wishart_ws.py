@@ -1,6 +1,7 @@
 from collections import defaultdict
 import dill
 import glob
+import logging
 import math
 from multiprocess import Pool
 import numpy as np
@@ -13,6 +14,9 @@ from sklearn.pipeline import make_pipeline
 import sys
 from tqdm import tqdm
 import warnings
+
+# Set up logger
+logger = logging.getLogger(__name__)
 
 # Filter known third-party warnings
 warnings.filterwarnings('ignore', message='pkg_resources is deprecated')
@@ -413,7 +417,12 @@ def process_rerun(sb, results_dict):
                 res['resource'] = resource
                 res_list.append(res)
         if len(res_list) == 0:
-            return 
+            logger.warning(
+                'No results generated for parameters (sweeps=%s, replicas=%s, pcold=%s, phot=%s). '
+                'This may indicate empty resource_list or no experiments.',
+                sweeps, replicas, pcold, phot
+            )
+            return None
         res = pd.concat(res_list, ignore_index=True)
         # except:
         #     print('failing interal for parameters {}'.format(k))
@@ -433,20 +442,27 @@ def process_rerun(sb, results_dict):
     ret_list = [r for r in ret_list if r is not None]
     
     if len(ret_list) == 0:
-        print('Warning: No valid results to concatenate. Returning empty DataFrame.')
+        logger.warning(
+            'No valid results to concatenate after filtering None values. '
+            'All parameter sets returned empty results. This indicates a data processing issue.'
+        )
+        # Returning empty DataFrame allows calling code to continue, but this may mask
+        # an underlying problem. Consider raising an exception if this is unexpected.
         return pd.DataFrame()
+    
+    logger.info('Concatenating %d result DataFrames', len(ret_list))
     
     try:
         ret = pd.concat(ret_list, ignore_index=True)
     except ValueError as e:
         # Raised when DataFrames have incompatible columns or no objects to concatenate
-        print(f'Error concatenating results: {e}')
-        print(f'Number of DataFrames: {len(ret_list)}')
+        logger.error('Error concatenating results: %s', e)
+        logger.error('Number of DataFrames: %d', len(ret_list))
         raise
     except TypeError as e:
         # Raised when ret_list contains non-DataFrame objects
-        print(f'Error: ret_list contains invalid objects: {e}')
-        print(f'Types in ret_list: {[type(r) for r in ret_list]}')
+        logger.error('ret_list contains invalid objects: %s', e)
+        logger.error('Types in ret_list: %s', [type(r) for r in ret_list])
         raise
     return ret
         
