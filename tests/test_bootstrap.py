@@ -883,6 +883,28 @@ class TestBootstrapReduceMem:
             
             # Clean up
             os.unlink(tmp_file.name)
+    
+    def test_bootstrap_reduce_mem_requires_name_fcn(self):
+        """Test that Bootstrap_reduce_mem fails fast when name_fcn is None."""
+        df = pd.DataFrame({
+            'energy': [100, 80],
+            'time': [10, 15],
+            'group': ['A', 'B']
+        })
+        
+        shared_args = {'response_col': 'energy', 'resource_col': 'time'}
+        params = BootstrapParameters(shared_args=shared_args, update_rule=dummy_update_rule)
+        
+        with tempfile.TemporaryDirectory() as bootstrap_dir:
+            # Test with None name_fcn - should fail fast at function start
+            with pytest.raises(ValueError, match="name_fcn is required for Bootstrap_reduce_mem"):
+                Bootstrap_reduce_mem(
+                    df,
+                    [['group']],
+                    [params],
+                    bootstrap_dir,
+                    name_fcn=None  # This should cause immediate failure
+                )
 
 
 class TestConstants:

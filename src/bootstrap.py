@@ -334,6 +334,11 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
         DataFrame containing the bootstrap results.
     """
     bs_params_list = list(bs_params_list)
+    
+    # Validate name_fcn early for all code paths that require it
+    # (All paths in Bootstrap_reduce_mem require name_fcn to generate group names)
+    if name_fcn is None:
+        raise ValueError("name_fcn is required for Bootstrap_reduce_mem operation")
 
     if isinstance(df, pd.DataFrame) or isinstance(df, str):
         if isinstance(df, str):
@@ -342,8 +347,6 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
         group_on = group_on[0]
 
         def upper_f_dataframe(df_upper_group, bs_params_list):
-            if name_fcn is None:
-                raise ValueError("name_fcn is required for this operation")
             group_name = name_fcn(df_upper_group[0])
             df_group = df_upper_group[1]
             filename = os.path.join(
@@ -385,8 +388,6 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
             logger.debug("calling list of names method")
 
             def upper_f_str_list(upper_group_filename, bs_params_list):
-                if name_fcn is None:
-                    raise ValueError("name_fcn is required for this operation")
                 df_group = pd.read_pickle(upper_group_filename)
                 group_name = name_fcn(upper_group_filename)
                 logger.info("evaluation bs for %s", group_name)
@@ -428,8 +429,6 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
         elif isinstance(df[0], pd.DataFrame):
 
             def upper_f_df_list(df_group, bs_params_list):
-                if name_fcn is None:
-                    raise ValueError("name_fcn is required for this operation")
                 group_name = name_fcn(df_group)
                 filename = os.path.join(
                     bootstrap_dir, "bootstrapped_results_{}.pkl".format(group_name)
