@@ -319,6 +319,102 @@ class TestBootstrapParameters:
         assert params.shared_args['best_value'] == 75
         assert params.metric_args['RTT']['RTT_factor'] == 10
 
+    def test_update_rule_wrong_signature_fails(self):
+        """Test that update_rule with wrong signature fails at runtime.
+        
+        This test validates that providing an update_rule with incorrect signature
+        (missing self parameter) will fail when called, helping catch common mistakes.
+        """
+        import inspect
+        
+        shared_args = {
+            'response_col': 'energy',
+            'resource_col': 'time',
+            'response_dir': -1,
+            'confidence_level': 68
+        }
+        
+        # Define update_rule with WRONG signature (only takes df)
+        def wrong_update(df):
+            """This has wrong signature - missing self parameter."""
+            pass
+        
+        # Create params with wrong signature function
+        params = BootstrapParameters(
+            shared_args=shared_args,
+            update_rule=wrong_update,  # type: ignore  # Intentionally wrong for testing
+            metric_args=defaultdict(dict),
+            bootstrap_iterations=10,
+            downsample=2
+        )
+        
+        df = pd.DataFrame({
+            'energy': [100, 80, 120],
+            'time': [10, 15, 8]
+        })
+        
+        # Verify the signature is actually wrong (only 1 parameter)
+        sig = inspect.signature(wrong_update)
+        assert len(sig.parameters) == 1, "Test setup: function should have 1 parameter"
+        
+        # Calling it should fail with TypeError
+        with pytest.raises(TypeError) as exc_info:
+            params.update_rule(params, df)  # type: ignore  # Will fail at runtime
+        
+        assert "takes 1 positional argument but 2 were given" in str(exc_info.value)
+
+    def test_update_rule_signature_validation(self):
+        """Test helper to validate update_rule has correct signature.
+        
+        This demonstrates how to check update_rule signature before using it,
+        which could be useful for providing better error messages to users.
+        """
+        import inspect
+        
+        def correct_signature(self, df):
+            """Correct: takes self and df."""
+            pass
+        
+        def wrong_signature_1(df):
+            """Wrong: only takes df."""
+            pass
+        
+        def wrong_signature_2(self, df, extra):
+            """Wrong: takes too many parameters."""
+            pass
+        
+        def wrong_signature_3():
+            """Wrong: takes no parameters."""
+            pass
+        
+        # Helper function to validate signature
+        def validate_update_rule_signature(func):
+            """Check if function has correct signature (2 parameters)."""
+            sig = inspect.signature(func)
+            param_count = len(sig.parameters)
+            return param_count == 2
+        
+        # Test validation
+        assert validate_update_rule_signature(correct_signature) is True
+        assert validate_update_rule_signature(wrong_signature_1) is False
+        assert validate_update_rule_signature(wrong_signature_2) is False
+        assert validate_update_rule_signature(wrong_signature_3) is False
+        
+        # Show that correct signature works
+        params = BootstrapParameters(
+            shared_args={'response_col': 'energy'},
+            update_rule=correct_signature,
+            metric_args=defaultdict(dict)
+        )
+        
+        df = pd.DataFrame({'energy': [100, 80, 120]})
+        
+        # Validate before using
+        assert validate_update_rule_signature(params.update_rule) is True
+        
+        # Should work fine
+        params.update_rule(params, df)  # type: ignore  # Already validated above
+
 
 class TestBSParamsIter:
     """Test class for BSParams_iter iterator."""
