@@ -33,8 +33,16 @@ class BootstrapParameters:
     shared_args : dict
         Shared arguments for the bootstrap method.
         We usually have 'resource_col, response_col, response_dir, best_value, random_value, confidence_level'
-    update_rule : Callable[[pd.DataFrame], None]
-        Function to update the dataframe with the bootstrap results.
+    update_rule : Callable[[BootstrapParameters, pd.DataFrame], None], optional
+        Update rule function to modify shared_args and metric_args for each bootstrap group.
+        Should be defined as an unbound method with signature: def update_rule(self, df)
+        where self is the BootstrapParameters instance and df is the DataFrame.
+        If None, uses default_update which sets best_value and RTT_factor.
+        
+        Example:
+            def custom_update(self, df):
+                self.shared_args['best_value'] = df['ground_truth'].iloc[0]
+                self.metric_args['RTT']['RTT_factor'] = df['time'].iloc[0]
     agg : Optional[str]
         Aggregation column name to use for weighted sampling, or None for uniform sampling.
     metric_args : DefaultDict[str, dict]
@@ -52,8 +60,9 @@ class BootstrapParameters:
     -------
     __post_init__()
         Post-initialization function.
-    default_update(df)
+    default_update(self, df)
         Default update rule for the bootstrap method.
+        Sets best_value based on response direction and RTT_factor based on resource sum.
     """
 
     shared_args: dict  #'resource_col, response_col, response_dir, best_value, random_value, confidence_level'

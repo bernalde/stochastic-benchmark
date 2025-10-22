@@ -28,8 +28,12 @@ from bootstrap import (
 import success_metrics
 
 
-def dummy_update_rule(bs_params, df):
-    """Default dummy update rule for testing."""
+def dummy_update_rule(self, df):
+    """Default dummy update rule for testing.
+    
+    Note: update_rule functions should use signature (self, df) where
+    self is the BootstrapParameters instance. This is an unbound method pattern.
+    """
     pass
 
 
@@ -48,7 +52,7 @@ class TestBootstrapParameters:
         }
         
         # Create a simple update rule function
-        def dummy_update_rule(bs_params, df):
+        def dummy_update_rule(self, df):
             pass
             
         params = BootstrapParameters(shared_args=shared_args, update_rule=dummy_update_rule)
@@ -95,7 +99,7 @@ class TestBootstrapParameters:
         """Test BootstrapParameters post-initialization behavior."""
         shared_args = {'response_col': 'energy'}
         
-        def dummy_update_rule(bs_params, df):
+        def dummy_update_rule(self, df):
             pass
             
         params = BootstrapParameters(shared_args=shared_args, update_rule=dummy_update_rule)
@@ -119,7 +123,7 @@ class TestBootstrapParameters:
             'response_dir': -1
         }
         
-        def dummy_update_rule(bs_params, df):
+        def dummy_update_rule(self, df):
             pass
         
         # Provide metric_args with RTT structure
@@ -155,7 +159,7 @@ class TestBootstrapParameters:
             'response_dir': 1
         }
         
-        def dummy_update_rule(bs_params, df):
+        def dummy_update_rule(self, df):
             pass
         
         # Provide metric_args with RTT structure
