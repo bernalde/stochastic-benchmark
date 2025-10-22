@@ -280,6 +280,7 @@ def stoch_bench_setup():
     resource_values = list(recipes['resource'])
     budgets = [i*10**j for i in [1, 1.5, 2, 3, 5, 7]
                 for j in [3, 4, 5]] + [1e6]
+    # Convert to list for type safety with RandomSearchParameters.budgets: list
     budgets = list(np.unique([take_closest(resource_values, b) for b in budgets]))
 
     # which columns determin the order in sequential search experiments
@@ -316,6 +317,8 @@ def stoch_bench_setup():
 
     if sb.interp_results is not None:
         testing_results = sb.interp_results[sb.interp_results['train'] == 0].copy()
+        # np.unique returns ndarray which works fine for iteration, but explicit list
+        # conversion improves clarity and ensures compatibility with functions expecting lists
         testing_instances = list(np.unique(testing_results['instance']))
     # for idx in [5, 6]:
     #     parameters_list = sb.experiments[idx].list_runs()
