@@ -1347,7 +1347,6 @@ class stochastic_benchmark:
             self.populate_training_stats()
             self.populate_testing_stats()
             self.populate_interp_results()
-            # self.populate_bs_results()
 
     def run_Bootstrap(self, bsParams_iter, group_name_fcn=None):
         if self.bs_results is not None:
@@ -1666,50 +1665,6 @@ class stochastic_benchmark:
                 )
                 self.interp_results.to_pickle(self.here.interpolate)
                 self.bs_results = None
-            # else:
-            #     self.populate_bs_results(self.bsParams_iter, self.group_name_fcn)
-
-    # def populate_bs_results(self, group_name_fcn=None):
-    #     """
-    #     Tries to recover or computes bootstrapped results
-    #     """
-
-    #     if self.bs_results is None:
-    #         if self.reduce_mem:
-    #             def raw2bs_names(raw_filename):
-    #                 group_name = group_name_fcn(raw_filename)
-    #                 bs_filename = os.path.join(self.here.checkpoints, 'bootstrapped_results_{}.pkl'.format(group_name))
-    #                 return bs_filename
-
-    #             self.raw_data = glob.glob(os.path.join(self.here.raw_data, '*.pkl'))
-    #             bs_names = [raw2bs_names(raw_file) for raw_file in self.raw_data]
-
-    #             if all([os.path.exists(bs_name) for bs_name in bs_names]) and len(bs_names) > 1 and self.recover:
-    #                 print('Reading bootstrapped results')
-    #                 self.bs_results = bs_names
-    #             else:
-    #                 group_on = self.parameter_names + self.instance_cols
-    #                 if not hasattr(self, 'raw_data'):
-    #                     print('Running bootstrapped results')
-    #                     self.raw_data = glob.glob(os.path.join(self.here.raw_data, '*.pkl'))
-    #                 self.bs_results = bootstrap.Bootstrap_reduce_mem(self.raw_data, group_on, self.bsParams_iter, self.here.checkpoints, group_name_fcn)
-
-    #         else:
-    #             if os.path.exists(self.here.bootstrap) and self.recover:
-    #                 print('Reading bootstrapped results')
-    #                 self.bs_results = pd.read_pickle(self.here.bootstrap)
-    #             else:
-    #                 print('Running bootstrapped results')
-    #                 group_on = self.parameter_names + self.instance_cols
-    #                 if not hasattr(self, 'raw_data'):
-    #                     self.raw_data = df_utils.read_exp_raw(self.here.raw_data)
-
-    #                 progress_dir = os.path.join(self.here.progress, 'bootstrap/')
-    #                 if not os.path.exists(progress_dir):
-    #                     os.makedirs(progress_dir)
-
-    #                 self.bs_results = bootstrap.Bootstrap(self.raw_data, group_on, self.bsParams_iter, progress_dir)
-    #                 self.bs_results.to_pickle(self.here.bootstrap)
 
     def evaluate_without_bootstrap(self, df, group_on):
         """ "
