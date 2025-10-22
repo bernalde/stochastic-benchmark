@@ -334,9 +334,6 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
         DataFrame containing the bootstrap results.
     """
     bs_params_list = list(bs_params_list)
-    
-    # Initialize upper_f to avoid possibly unbound warning
-    upper_f = None
 
     if isinstance(df, pd.DataFrame) or isinstance(df, str):
         if isinstance(df, str):
@@ -472,10 +469,6 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
             raise TypeError(f"Unsupported type for df[0]: {type(df[0])}")
     else:
         raise TypeError(f"Unsupported type for df: {type(df)}")
-    
-    # Ensure upper_f is defined
-    if upper_f is None:
-        raise RuntimeError("upper_f was not properly initialized")
 
     bs_filenames = [upper_f(df_group, bs_params_list) for df_group in df]
     return bs_filenames
