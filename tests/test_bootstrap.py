@@ -127,7 +127,7 @@ class TestBootstrapParameters:
             pass
         
         # Provide metric_args with RTT structure
-        metric_args = defaultdict(lambda: None)
+        metric_args = defaultdict(dict)
         metric_args['RTT'] = {}
             
         params = BootstrapParameters(
@@ -163,7 +163,7 @@ class TestBootstrapParameters:
             pass
         
         # Provide metric_args with RTT structure
-        metric_args = defaultdict(lambda: None)
+        metric_args = defaultdict(dict)
         metric_args['RTT'] = {}
             
         params = BootstrapParameters(
