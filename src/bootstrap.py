@@ -9,7 +9,7 @@ import numpy as np
 import os
 import pandas as pd
 from tqdm import tqdm
-from typing import Callable, List, DefaultDict
+from typing import Callable, List, DefaultDict, Optional
 
 import names
 import success_metrics
@@ -35,8 +35,8 @@ class BootstrapParameters:
         We usually have 'resource_col, response_col, response_dir, best_value, random_value, confidence_level'
     update_rule : Callable[[pd.DataFrame], None]
         Function to update the dataframe with the bootstrap results.
-    agg : str
-        Aggregation function to use for the bootstrap.
+    agg : Optional[str]
+        Aggregation column name to use for weighted sampling, or None for uniform sampling.
     metric_args : DefaultDict[str, dict]
         Dictionary of metric arguments to pass to the success_metrics functions.
     success_metrics : List
@@ -58,9 +58,9 @@ class BootstrapParameters:
 
     shared_args: dict  #'resource_col, response_col, response_dir, best_value, random_value, confidence_level'
     update_rule: Callable[[pd.DataFrame], None] = field()
-    agg: str = field(default_factory=lambda: None)
+    agg: Optional[str] = None
     metric_args: DefaultDict[str, dict] = field(
-        default_factory=lambda: defaultdict(lambda: None)
+        default_factory=lambda: defaultdict(dict)
     )
     success_metrics: List = field(default_factory=lambda: [success_metrics.PerfRatio])
     bootstrap_iterations: int = 1000
@@ -68,7 +68,7 @@ class BootstrapParameters:
     keep_cols: List = field(default_factory=lambda: [])
 
     def __post_init__(self):
-        temp_metric_args = defaultdict(lambda: None)
+        temp_metric_args = defaultdict(dict)
         temp_metric_args.update(self.metric_args)
         self.metric_args = temp_metric_args
 
@@ -266,16 +266,17 @@ def Bootstrap(df, group_on, bs_params_list, progress_dir=None):
     df_list : List[str]
         List of strings pointing to files with portions of bootstrapped_results
     """
-    if type(df) == list:
-        if type(df)[0] == pd.DataFrame:
+    if isinstance(df, list):
+        if isinstance(df[0], pd.DataFrame):
             df = pd.concat(df, ignore_index=True)
-        elif type(df)[0] == str:
+        elif isinstance(df[0], str):
             df = pd.concat([pd.read_pickle(df_str) for df_str in df], ignore_index=True)
-    elif type(df) == str:
+    elif isinstance(df, str):
         df = pd.read_pickle(df)
 
-    if type(df) != pd.DataFrame:
+    if not isinstance(df, pd.DataFrame):
         logger.error("Unsupported type as bootstrap input")
+        raise TypeError(f"Expected DataFrame but got {type(df)}")
 
     def f(bs_params):
         if progress_dir is not None:
@@ -324,14 +325,19 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
         DataFrame containing the bootstrap results.
     """
     bs_params_list = list(bs_params_list)
+    
+    # Initialize upper_f to avoid possibly unbound warning
+    upper_f = None
 
-    if (type(df) == pd.DataFrame) or (type(df) == str):
-        if type(df) == str:
+    if isinstance(df, pd.DataFrame) or isinstance(df, str):
+        if isinstance(df, str):
             df = pd.read_pickle(df)
         lower_group_on = group_on[1]
         group_on = group_on[0]
 
-        def upper_f(df_upper_group, bs_params_list):
+        def upper_f_dataframe(df_upper_group, bs_params_list):
+            if name_fcn is None:
+                raise ValueError("name_fcn is required for this operation")
             group_name = name_fcn(df_upper_group[0])
             df_group = df_upper_group[1]
             filename = os.path.join(
@@ -365,12 +371,16 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
                 res = pd.concat(df_list, ignore_index=True)
                 res.to_pickle(filename)
             return filename
+        
+        upper_f = upper_f_dataframe
 
-    elif type(df) == list:
-        if type(df[0]) == str:
+    elif isinstance(df, list):
+        if isinstance(df[0], str):
             logger.debug("calling list of names method")
 
-            def upper_f(upper_group_filename, bs_params_list):
+            def upper_f_str_list(upper_group_filename, bs_params_list):
+                if name_fcn is None:
+                    raise ValueError("name_fcn is required for this operation")
                 df_group = pd.read_pickle(upper_group_filename)
                 group_name = name_fcn(upper_group_filename)
                 logger.info("evaluation bs for %s", group_name)
@@ -406,10 +416,14 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
                     res = pd.concat(df_list, ignore_index=True)
                     res.to_pickle(filename)
                 return filename
+            
+            upper_f = upper_f_str_list
 
-        elif type(df[0]) == pd.DataFrame:
+        elif isinstance(df[0], pd.DataFrame):
 
-            def upper_f(df_group, bs_params_list):
+            def upper_f_df_list(df_group, bs_params_list):
+                if name_fcn is None:
+                    raise ValueError("name_fcn is required for this operation")
                 group_name = name_fcn(df_group)
                 filename = os.path.join(
                     bootstrap_dir, "bootstrapped_results_{}.pkl".format(group_name)
@@ -443,6 +457,16 @@ def Bootstrap_reduce_mem(df, group_on, bs_params_list, bootstrap_dir, name_fcn=N
                     res = pd.concat(df_list, ignore_index=True)
                     res.to_pickle(filename)
                 return filename
+            
+            upper_f = upper_f_df_list
+        else:
+            raise TypeError(f"Unsupported type for df[0]: {type(df[0])}")
+    else:
+        raise TypeError(f"Unsupported type for df: {type(df)}")
+    
+    # Ensure upper_f is defined
+    if upper_f is None:
+        raise RuntimeError("upper_f was not properly initialized")
 
     bs_filenames = [upper_f(df_group, bs_params_list) for df_group in df]
     return bs_filenames
