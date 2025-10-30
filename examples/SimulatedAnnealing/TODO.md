@@ -1,0 +1,5 @@
+- Use Native Performance Ration computation
+- Compare first plot (virtual best - training set - test set) with QUBO notebooks
+- Compare native bootstrap resample results with QUBO notebooks boostrap results
+- Draw conclusions from resource - input plots
+- Define what metrics to be used when comparing the different solvers we will benchmark with window sticker.
