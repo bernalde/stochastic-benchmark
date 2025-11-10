@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/bernalde/stochastic-benchmark/actions/workflows/ci.yml/badge.svg)](https://github.com/bernalde/stochastic-benchmark/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/bernalde/stochastic-benchmark/branch/main/graph/badge.svg)](https://codecov.io/gh/bernalde/stochastic-benchmark)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/release/python-390/)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/release/python-3100/)
 [![License](https://img.shields.io/github/license/bernalde/stochastic-benchmark)](LICENSE)
 
 Repository for Stochastic Optimization Solvers Benchmark code
@@ -62,6 +62,11 @@ The current package implements the following functionality:
     pip install -r requirements.txt
     ```
 
+4. **Optional: Install Example Dependencies** (needed for some example notebooks):
+    ```bash
+    pip install -r requirements-examples.txt
+    ```
+
 ### Method 2: Downloading as a Zip Archive
 
 1. **Download the Repository**:
@@ -79,6 +84,11 @@ The current package implements the following functionality:
 3. **Install Dependencies**:
     ```bash
     pip install -r requirements.txt
+    ```
+
+4. **Optional: Install Example Dependencies** (needed for some example notebooks):
+    ```bash
+    pip install -r requirements-examples.txt
     ```
 
 <!-- the following `pip` command can install this package -->
