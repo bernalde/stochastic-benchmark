@@ -1169,7 +1169,7 @@ class VirtualBestBaseline:
             def dfSS(df):
                 return StatsSingle(df, stats_params)
 
-            df_stats = df.groupby(group_on).progress_apply(dfSS, include_groups=False).reset_index()
+            df_stats = df.groupby(group_on).progress_apply(dfSS).reset_index() # include_groups=False, Pandas Version Error
             df_stats.drop("level_{}".format(len(group_on)), axis=1, inplace=True)
             applyBounds(df_stats, stats_params)
 
@@ -1704,7 +1704,7 @@ class stochastic_benchmark:
             return bs_df
 
         full_eval = (
-            df.groupby(group_on).apply(lambda df: evaluate_single(df), include_groups=False).reset_index()
+            df.groupby(group_on).apply(lambda df: evaluate_single(df)).reset_index() # include_groups=False, Pandas Version Error
         )
         full_eval.drop(columns=["level_{}".format(len(group_on))], inplace=True)
         return full_eval

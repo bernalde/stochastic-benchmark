@@ -1,6 +1,7 @@
 import df_utils
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import pandas as pd
 import seaborn as sns
 import seaborn.objects as so
@@ -612,3 +613,5 @@ class Plotting:
             figs[experiment.name] = exp_figs
             axes[experiment.name] = exp_axes
         return figs, axes
+    
+    

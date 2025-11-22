@@ -155,7 +155,7 @@ def prepare_qaoa_raw_data(json_files: List[str], output_dir: str = 'exp_raw'):
     json_files : List[str]
         List of paths to JSON files containing QAOA results
     output_dir : str, default='exp_raw'
-        Directory to save processed raw data
+        Directory to save processed raw data (.pkl files)
     """
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)

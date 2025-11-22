@@ -155,3 +155,21 @@ notebooks/example_data/wishart*
 notebooks/example_data/max_clique*
 notebooks/example_data/sk_pleiades_n=200/*
 notebooks/example_data/sk_pleiades_n=100/checkpoints/*.DS_Store
+
+# Project-specific data artifacts (examples, runs, plots)
+examples/**/exp_raw/
+examples/**/R3R/
+examples/**/runs/
+examples/**/plots/
+examples/**/progress/
+examples/**/checkpoints/
+plots/
+progress/
+checkpoints/
+*.pkl
+*.pkl.gz
+*.npz
+*.npy
+
+# Accidental file created at repo root
+stochastic-benchmark
