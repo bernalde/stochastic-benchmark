@@ -306,7 +306,7 @@ def evaluate(
         Recipes to try out
     distance_fcn : Callable
         Computes distance between parameters for projection
-    parameters_names : list[str]
+    parameter_names : list[str]
     resource_col : str
     group_on : list[str]
         list of columns that define an instance

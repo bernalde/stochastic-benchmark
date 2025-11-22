@@ -613,5 +613,3 @@ class Plotting:
             figs[experiment.name] = exp_figs
             axes[experiment.name] = exp_axes
         return figs, axes
-    
-    
