@@ -19,8 +19,8 @@ YYYYMMDD_HHMMSS_###N##R3R_MC_FA_SV_noOpt_#.json
 Where:
 - `YYYYMMDD_HHMMSS` - Timestamp
 - `###` - Instance ID (e.g., 000, 001, 002)
-- `N##R3R` - Problem size indicator
-- `_#.json` - Depth parameter (p)
+- `N##R#R` - N## = Problem Size, R#R = # Random Regular Graph
+- `_#.json` - QAOA parameter (p)
 
 ## Synthetic Fixtures
 
