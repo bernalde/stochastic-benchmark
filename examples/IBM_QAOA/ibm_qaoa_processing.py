@@ -106,9 +106,15 @@ def load_qaoa_results(json_data: Dict[str, Any]) -> List[QAOAResult]:
             results.append(res)
     return results
 
-def convert_to_dataframe(qaoa_results: List[QAOAResult], instance_id: str, p: int) -> pd.DataFrame:
+def convert_to_dataframe(qaoa_results: List[QAOAResult], instance_id: str, p: int, optimized: Optional[str] = None) -> pd.DataFrame:
     """
     Convert a list of QAOA result objects to a DataFrame.
+    
+    Parameters:
+        qaoa_results: List of QAOA result objects
+        instance_id: Instance identifier
+        p: Circuit depth
+        optimized: Optimization flag ('opt', 'noOpt', or None if not specified)
     """
     data = []
     for res in qaoa_results:
@@ -126,6 +132,7 @@ def convert_to_dataframe(qaoa_results: List[QAOAResult], instance_id: str, p: in
             'evaluator': res.evaluator,
             'success': res.success,
             'n_iterations': len(res.energy_history),
+            'optimized': optimized,
         }
         
         # Add parameters
@@ -270,8 +277,8 @@ def process_qaoa_data(json_pattern: str = "R3R/*.json", output_dir: str = "exp_r
             
         qaoa_results = load_qaoa_results(qaoa_data)
             
-        # IBM-SPECIFIC: Extract instance_id and depth from IBM filename format
-        # Expected format: YYYYMMDD_HHMMSS_###N##R3R_MC_FA_SV_noOpt_#.json
+        # IBM-SPECIFIC: Extract instance_id, depth, and optimization flag from IBM filename format
+        # Expected format: YYYYMMDD_HHMMSS_###N##R3R_MC_FA_SV_noOpt_#.json or ..._opt_#.json
         # where ### is instance, final # is depth p
         filename = os.path.basename(json_file)
         parts = filename.split('_')
@@ -283,6 +290,14 @@ def process_qaoa_data(json_pattern: str = "R3R/*.json", output_dir: str = "exp_r
             instance_id = match.group(1) if match else '0'
         except IndexError:
             instance_id = '0'
+        
+        # Optimization flag (check if filename contains _opt, _noOpt, or neither)
+        if '_noOpt_' in filename:
+            optimized = 'noOpt'
+        elif '_opt_' in filename:
+            optimized = 'opt'
+        else:
+            optimized = None  # No optimization flag in filename
             
         # Depth (p)
         try:
@@ -292,7 +307,7 @@ def process_qaoa_data(json_pattern: str = "R3R/*.json", output_dir: str = "exp_r
             p = None
             
         # Convert to DataFrame
-        df = convert_to_dataframe(qaoa_results, instance_id, p)
+        df = convert_to_dataframe(qaoa_results, instance_id, p, optimized)
         
         # IBM-SPECIFIC: Add GTMinEnergy proxy when ground truth unavailable
         # Uses minimum observed energy as best-known value for bootstrap update_rules
