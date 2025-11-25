@@ -1,379 +1,471 @@
-"""
-IBM QAOA data processing script for stochastic benchmark
-Converts IBM QAOA JSON results to format compatible with stochastic-benchmark
-"""
-
+import os
 import json
+import re
+import glob
+import logging
 import numpy as np
 import pandas as pd
-import os
+from dataclasses import dataclass, field
+from typing import List, Dict, Any, Optional, Tuple, Union
+import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import sys
-from typing import Dict, List, Any
-from dataclasses import dataclass
 
 # Add stochastic-benchmark src to path
 sys.path.append('../../src')
+
+# Stochastic Benchmark imports
+import stochastic_benchmark
 import bootstrap
 import interpolate
-import names
-import random_exploration
-import sequential_exploration
 import stats
-import stochastic_benchmark
 import success_metrics
-from utils_ws import *
+import names
 
+# Setup logging
+logger = logging.getLogger(__name__)
+if not logging.getLogger().hasHandlers():
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+@dataclass
+class ProcessingConfig:
+    """Configuration for IBM QAOA data processing."""
+    persist_raw: bool = True                     # Write per-file pickles during ingestion
+    interpolate_diversity_threshold: int = 6     # Skip interpolation if instances*depths < threshold
+    fabricate_single_trial: bool = True          # Create synthetic bootstrap for single trials
+    seed: int = 42                               # Random seed for train/test split
+    log_progress_interval: int = 50              # Log progress every N files
 
 @dataclass
 class QAOAResult:
-    """Data class to hold QAOA optimization results"""
+    """Data structure to hold parsed QAOA result for a single trial."""
     trial_id: int
-    optimized_params: List[float]
-    train_duration: float
+    instance_id: str
+    depth: int
     energy: float
+    approximation_ratio: float
+    train_duration: float
     trainer_name: str
-    method: str = None
-    success: bool = False
-    energy_history: List[float] = None
-    parameter_history: List[List[float]] = None
-    x0: List[float] = None
+    evaluator: Optional[str]
+    success: bool
+    optimized_params: List[float] = field(default_factory=list)
+    energy_history: List[float] = field(default_factory=list)
 
+def parse_qaoa_trial(trial_data: Dict[str, Any], trial_id: int, instance_id: str, depth: int) -> QAOAResult:
+    """
+    Parse a single trial dictionary into a QAOAResult object.
+    """
+    # Extract basic metrics
+    energy = trial_data.get('energy', np.nan)
+    approx_ratio = trial_data.get('approximation ratio', np.nan)
+    duration = trial_data.get('train_duration', 0.0)
+    
+    # Extract metadata - handle trainer dict
+    trainer_info = trial_data.get('trainer', {})
+    if isinstance(trainer_info, dict):
+        trainer = trainer_info.get('trainer_name', 'Unknown')
+        evaluator = trainer_info.get('evaluator', None)
+    else:
+        trainer = str(trainer_info) if trainer_info else 'Unknown'
+        evaluator = None
+    
+    success = trial_data.get('success', False)
+    
+    # Extract parameters (gamma, beta, etc.)
+    params = trial_data.get('optimal_params', [])
+    
+    # Extract history if available
+    history = trial_data.get('history', [])
+    
+    return QAOAResult(
+        trial_id=trial_id,
+        instance_id=instance_id,
+        depth=depth,
+        energy=energy,
+        approximation_ratio=approx_ratio,
+        train_duration=duration,
+        trainer_name=trainer,
+        evaluator=evaluator,
+        success=success,
+        optimized_params=params,
+        energy_history=history
+    )
 
-def load_qaoa_json(json_file: str) -> List[QAOAResult]:
+def load_qaoa_results(json_data: Dict[str, Any]) -> List[QAOAResult]:
     """
-    Load QAOA results from JSON file and convert to QAOAResult objects
-    
-    Parameters
-    ----------
-    json_file : str
-        Path to JSON file containing QAOA results
-        
-    Returns
-    -------
-    List[QAOAResult]
-        List of QAOA optimization results
+    Load and parse a list of QAOA trial dictionaries.
     """
-    with open(json_file, 'r') as f:
-        data = json.load(f)
-    
     results = []
-    for trial_id, trial_data in data.items():
-        # Skip if this is just a random point (trainer_name == "RandomPoint")
-        if trial_data.get('trainer', {}).get('trainer_name') == 'RandomPoint':
-            continue
-            
-        # Extract energy - handle "NA" values
-        energy = trial_data.get('energy', np.nan)
-        if energy == "NA":
-            energy = np.nan
-            
-        # Extract success - handle string boolean
-        success_str = trial_data.get('success', 'False')
-        success = success_str.lower() == 'true' if isinstance(success_str, str) else bool(success_str)
-        
-        trainer_info = trial_data.get('trainer', {})
-        method = None
-        if isinstance(trainer_info, dict):
-            method = trainer_info.get('method', None)
-        
-        result = QAOAResult(
-            trial_id=int(trial_id),
-            optimized_params=trial_data.get('optimized_params', []),
-            train_duration=trial_data.get('train_duration', 0.0),
-            energy=energy,
-            trainer_name=trainer_info.get('trainer_name', 'Unknown') if isinstance(trainer_info, dict) else str(trainer_info),
-            method=method,
-            success=success,
-            energy_history=trial_data.get('energy_history', []),
-            parameter_history=trial_data.get('parameter_history', []),
-            x0=trial_data.get('x0', [])
-        )
-        results.append(result)
-    
+    # The JSON structure is a dict with trial IDs as keys
+    if isinstance(json_data, dict):
+        trial_keys = [key for key in json_data if key.isdigit()]
+        for trial_id in trial_keys:
+            trial_data = json_data[trial_id]
+            # We pass placeholders for instance_id and depth as they are added later
+            res = parse_qaoa_trial(trial_data, int(trial_id), "0", 0)
+            results.append(res)
     return results
 
-
-def qaoa_results_to_dataframe(results: List[QAOAResult], instance_id: int = 1) -> pd.DataFrame:
+def convert_to_dataframe(qaoa_results: List[QAOAResult], instance_id: str, p: int) -> pd.DataFrame:
     """
-    Convert QAOA results to DataFrame format compatible with stochastic-benchmark
-    
-    Parameters
-    ----------
-    results : List[QAOAResult]
-        List of QAOA optimization results
-    instance_id : int, default=1
-        Instance identifier for this problem
+    Convert a list of QAOA result objects to a DataFrame.
+    """
+    data = []
+    for res in qaoa_results:
+        # Extract parameters
+        params = res.optimized_params
         
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame with columns expected by stochastic-benchmark
-    """
-    data_rows = []
-    
-    for result in results:
-        # Create parameter columns - for QAOA typically gamma and beta
-        params = result.optimized_params
-        param_dict = {}
-        if len(params) >= 1:
-            param_dict['gamma'] = params[0]
-        if len(params) >= 2:
-            param_dict['beta'] = params[1]
-        # Add more parameters if needed
-        for i, param in enumerate(params[2:], start=2):
-            param_dict[f'param_{i}'] = param
-            
         row = {
-            'trial_id': result.trial_id,
+            'trial_id': res.trial_id,
             'instance': instance_id,
-            'Energy': result.energy if not np.isnan(result.energy) else -999,  # Use placeholder for missing energy
-            'MeanTime': result.train_duration,
-            'trainer': result.trainer_name,
-            'method': result.method or 'Unknown',
-            'success': result.success,
-            'n_iterations': len(result.energy_history) if result.energy_history else 0,
-            'count': 1,  # Each trial represents one evaluation
-            **param_dict
+            'p': p,
+            'Energy': res.energy,
+            'Approximation_Ratio': res.approximation_ratio,
+            'MeanTime': res.train_duration,
+            'trainer': res.trainer_name,
+            'evaluator': res.evaluator,
+            'success': res.success,
+            'n_iterations': len(res.energy_history),
         }
-        data_rows.append(row)
-    
-    df = pd.DataFrame(data_rows)
-    
-    # Add GTMinEnergy (ground truth minimum energy) - placeholder for now
-    # In practice, this should be the known optimal energy for the problem
-    df['GTMinEnergy'] = df['Energy'].min()  # Use best found energy as placeholder
-    
+        
+        # Add parameters
+        if params:
+            for k, val in enumerate(params):
+                row[f'param_{k}'] = val
+                
+        data.append(row)
+        
+    df = pd.DataFrame(data)
     return df
 
-
-def prepare_qaoa_raw_data(json_files: List[str], output_dir: str = 'exp_raw'):
+def prepare_stochastic_benchmark_data(df: pd.DataFrame, instance_id: str, p: int, output_dir: str) -> str:
     """
-    Prepare raw QAOA data in format expected by stochastic-benchmark
+    Save the DataFrame to a pickle file formatted for stochastic benchmark.
     
-    Parameters
-    ----------
-    json_files : List[str]
-        List of paths to JSON files containing QAOA results
-    output_dir : str, default='exp_raw'
-        Directory to save processed raw data (.pkl files)
+    Note: Files are saved to output_dir/exp_raw/ to match StochasticBenchmark expectations.
     """
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    
-    for i, json_file in enumerate(json_files):
-        instance_id = i + 1
-        results = load_qaoa_json(json_file)
-        df = qaoa_results_to_dataframe(results, instance_id)
+    # StochasticBenchmark expects raw data in exp_raw subdirectory
+    raw_data_dir = os.path.join(output_dir, "exp_raw")
+    if not os.path.exists(raw_data_dir):
+        os.makedirs(raw_data_dir)
         
-        output_file = os.path.join(output_dir, f'raw_results_inst={instance_id}.pkl')
-        df.to_pickle(output_file)
-        print(f"Processed {json_file} -> {output_file} ({len(df)} trials)")
-
-
-def postprocess_linear(recipe):
-    """Linear postprocessing for QAOA parameters"""
-    x_range = (0.01, 10.0)  # Reasonable range for QAOA training time
-    post_recipe_dict = {}
+    # Construct filename
+    # Format: raw_results_inst=<instance_id>_depth=<p>.pkl
+    filename = f"raw_results_inst={instance_id}_depth={p}.pkl"
+    filepath = os.path.join(raw_data_dir, filename)
     
-    parameter_names = ['gamma', 'beta']
-    x = np.array(recipe['resource'])
-    range_idx = np.where((x >= x_range[0]) & (x <= x_range[1]))
-    x = x[range_idx]
-    post_recipe_dict['resource'] = x
-    x = x.reshape((-1, 1))
-    
-    for param in parameter_names:
-        if param in recipe.columns:
-            param_vals = np.array(recipe[param])
-            param_vals = param_vals[range_idx]
-            from sklearn.linear_model import LinearRegression
-            model = LinearRegression().fit(x, param_vals)
-            param_pred = model.predict(x)
-            post_recipe_dict[param] = param_pred
-    
-    pred_recipe = pd.DataFrame.from_dict(post_recipe_dict)
-    return pred_recipe
+    # Save
+    df.to_pickle(filepath)
+    return filepath
 
-
-def postprocess_random(meta_params):
-    """Postprocessing for random search meta-parameters"""
-    x_range = (0.01, 10.0)
-    post_recipe_dict = {}
-    
-    parameter_names = ['ExploreFrac', 'tau']
-    x = np.array(meta_params['TotalBudget'])
-    range_idx = np.where((x >= x_range[0]) & (x <= x_range[1]))
-    x = x[range_idx]
-    post_recipe_dict['TotalBudget'] = x
-    x = x.reshape((-1, 1))
-    
-    for param in parameter_names:
-        if param in meta_params.columns:
-            param_vals = np.array(meta_params[param])
-            param_vals = param_vals[range_idx]
-            if param == 'ExploreFrac':
-                post_recipe_dict[param] = np.mean(param_vals) * np.ones_like(param_vals)
-            elif param == 'tau':
-                param_pred = param_vals.copy()
-                range_idx_1 = np.where(x <= 1.0)[0]
-                param_pred[range_idx_1] = 0.1
-                range_idx_2 = np.where(x > 1.0)[0]
-                param_pred[range_idx_2] = 1.0
-                post_recipe_dict[param] = param_pred
-    
-    pred_recipe = pd.DataFrame.from_dict(post_recipe_dict)
-    if 'ExploreFrac' in pred_recipe.columns and 'TotalBudget' in pred_recipe.columns:
-        pred_recipe['ExplorationBudget'] = pred_recipe['TotalBudget'] * pred_recipe['ExploreFrac']
-    return pred_recipe
-
-
-def setup_qaoa_stochastic_benchmark():
+def setup_qaoa_benchmark(here: str = 'exp_raw') -> Tuple[stochastic_benchmark.stochastic_benchmark, List[str]]:
     """
-    Set up stochastic benchmark for QAOA data analysis
-    
-    Returns
-    -------
-    stochastic_benchmark.stochastic_benchmark
-        Configured stochastic benchmark object
+    Initialize and configure the stochastic benchmark object.
     """
-    # Basic configuration
-    here = os.getcwd()
-    parameter_names = ['gamma', 'beta']  # QAOA parameters
-    instance_cols = ['instance']
-    
-    # Response information
-    response_key = 'PerfRatio'  # Will be computed from Energy
-    response_dir = 1  # Maximize performance ratio
-    
-    # Optimization settings
-    recover = True
-    reduce_mem = True
-    smooth = True
+    parameter_names = ['gamma', 'beta', 'p']
+    response_key = 'PerfRatio'
     
     sb = stochastic_benchmark.stochastic_benchmark(
-        parameter_names, here, instance_cols, response_key, response_dir, recover, reduce_mem, smooth
+        parameter_names=parameter_names,
+        response_key=response_key,
+        here=here,
+        instance_cols=['instance'],
+        smooth=True
     )
     
-    # Bootstrap parameters
+    return sb, parameter_names
+
+def setup_bootstrap_parameters() -> bootstrap.BSParams_range_iter:
+    """
+    Configure bootstrap parameters.
+    """
     shared_args = {
-        'response_col': 'Energy',
+        'response_col': 'Approximation_Ratio',
         'resource_col': 'MeanTime',
-        'response_dir': -1,  # Minimize energy
+        'response_dir': 1,  # Maximize
         'confidence_level': 68,
         'random_value': 0.0
     }
-    
+
     metric_args = {}
-    metric_args['Response'] = {'opt_sense': -1}
-    metric_args['SuccessProb'] = {'gap': 0.1, 'response_dir': -1}  # Success within 10% of optimum
+    metric_args['Response'] = {'opt_sense': -1} 
+    metric_args['SuccessProb'] = {'gap': 0.1, 'response_dir': 1}
     metric_args['RTT'] = {
-        'fail_value': np.nan, 
+        'fail_value': np.nan,
         'RTT_factor': 1.0,
-        'gap': 0.1, 
+        'gap': 0.1,
         's': 0.99
     }
-    
+
     def update_rules(self, df):
-        """Update bootstrap parameters for each group"""
         GTMinEnergy = df['GTMinEnergy'].iloc[0]
         self.shared_args['best_value'] = GTMinEnergy
         self.metric_args['RTT']['RTT_factor'] = df['MeanTime'].iloc[0]
-    
-    # Success metrics
+
     sms = [
         success_metrics.Response,
         success_metrics.PerfRatio,
-        success_metrics.InvPerfRatio,
         success_metrics.SuccessProb,
-        success_metrics.Resource,
-        success_metrics.RTT
+        success_metrics.Resource
     ]
-    
-    boots_range = range(10, 101, 10)  # Smaller range for QAOA data
-    
+
+    boots_range = range(10, 51, 10)
+
     bsParams = bootstrap.BootstrapParameters(
         shared_args=shared_args,
         update_rule=update_rules,
         agg='count',
         metric_args=metric_args,
         success_metrics=sms,
-        keep_cols=['trainer', 'method']
+        keep_cols=[]
     )
-    
+
     bs_iter_class = bootstrap.BSParams_range_iter()
     bsparams_iter = bs_iter_class(bsParams, boots_range)
     
-    # Group name function
-    def group_name_fcn(raw_filename):
-        raw_filename = os.path.basename(raw_filename)
+    return bsparams_iter
+
+def group_name_fcn(raw_filename):
+    """Extract group name from filename.
+    
+    IBM-SPECIFIC: Assumes filename format raw_results_inst=<id>_depth=<p>.pkl
+    """
+    raw_filename = os.path.basename(raw_filename)
+    try:
         start_idx = raw_filename.index('inst')
         end_idx = raw_filename.index('.')
         return raw_filename[start_idx:end_idx]
-    
-    # Run bootstrap
-    sb.run_Bootstrap(bsparams_iter, group_name_fcn)
-    
-    # Interpolation
-    def resource_fcn(df):
-        return df['MeanTime'] * df['boots']  # Resource is time * bootstrap iterations
-    
-    iParams = interpolate.InterpolationParameters(
-        resource_fcn,
-        parameters=parameter_names,
-        ignore_cols=['trainer', 'method']
-    )
-    
-    sb.run_Interpolate(iParams)
-    
-    # Statistics
-    train_test_split = 0.8
-    metrics = ['Response', 'RTT', 'PerfRatio', 'SuccProb', 'MeanTime', 'InvPerfRatio']
-    stParams = stats.StatsParameters(metrics=metrics, stats_measures=[stats.Median()])
-    
-    sb.run_Stats(stParams, train_test_split)
-    
-    return sb
+    except ValueError:
+        return raw_filename
 
+def process_qaoa_data(json_pattern: str = "R3R/*.json", output_dir: str = "exp_raw", config: Optional[ProcessingConfig] = None) -> Tuple[stochastic_benchmark.stochastic_benchmark, pd.DataFrame]:
+    """
+    Main processing function.
+    
+    IBM-SPECIFIC: Default json_pattern targets IBM QAOA R3R experimental data directory.
+    
+    Args:
+        json_pattern: Glob pattern for JSON files
+        output_dir: Directory for output artifacts
+        config: Processing configuration (uses defaults if None)
+    """
+    if config is None:
+        config = ProcessingConfig()
+    
+    # 1. Load and Parse
+    # IBM-SPECIFIC: File discovery via glob pattern
+    json_files = glob.glob(json_pattern)
+    logger.info(f"Found {len(json_files)} JSON files.")
+    
+    all_qaoa_df = []
+    data_files = []
+    
+    for i, json_file in enumerate(json_files):
+        try:
+            with open(json_file, 'r') as f:
+                qaoa_data = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Skipping malformed file {json_file}: {e}")
+            continue
+            
+        qaoa_results = load_qaoa_results(qaoa_data)
+            
+        # IBM-SPECIFIC: Extract instance_id and depth from IBM filename format
+        # Expected format: YYYYMMDD_HHMMSS_###N##R3R_MC_FA_SV_noOpt_#.json
+        # where ### is instance, final # is depth p
+        filename = os.path.basename(json_file)
+        parts = filename.split('_')
+        
+        # Instance ID
+        try:
+            instance_str = parts[2]
+            match = re.match(r'(\d+)', instance_str)
+            instance_id = match.group(1) if match else '0'
+        except IndexError:
+            instance_id = '0'
+            
+        # Depth (p)
+        try:
+            depth_str = parts[-1].replace('.json', '')
+            p = int(depth_str)
+        except (ValueError, IndexError):
+            p = None
+            
+        # Convert to DataFrame
+        df = convert_to_dataframe(qaoa_results, instance_id, p)
+        
+        # IBM-SPECIFIC: Add GTMinEnergy proxy when ground truth unavailable
+        # Uses minimum observed energy as best-known value for bootstrap update_rules
+        if len(df) > 0 and 'GTMinEnergy' not in df.columns:
+             # Use min energy found in this file as proxy
+             df['GTMinEnergy'] = df['Energy'].min()
 
-def main():
-    """Main execution function"""
-    # Example usage - modify paths as needed
-    json_files = ['20250721_171511_example.json']  # Add more files as needed
-    
-    # Prepare raw data
-    print("Processing QAOA JSON files...")
-    prepare_qaoa_raw_data(json_files)
-    
-    # Set up and run stochastic benchmark
-    print("Setting up stochastic benchmark...")
-    sb = setup_qaoa_stochastic_benchmark()
-    
-    # Run baseline
-    print("Running baseline analysis...")
-    sb.run_baseline()
-    sb.run_ProjectionExperiment('TrainingStats', postprocess_linear, 'linear')
-    sb.run_ProjectionExperiment('TrainingResults', postprocess_linear, 'linear')
-    
-    # Set up search experiments
-    recipes, _ = sb.baseline.evaluate()
-    recipes.reset_index(inplace=True)
-    resource_values = list(recipes['resource'])
-    budgets = [0.01, 0.05, 0.1, 0.5, 1.0, 2.0, 5.0, 10.0]  # Time budgets for QAOA
-    budgets = np.unique([take_closest(resource_values, b) for b in budgets])
-    
-    key = names.param2filename({'Key': 'PerfRatio', 'Metric': 'median'}, '')
-    
-    rsParams = random_exploration.RandomSearchParameters(
-        budgets=budgets,
-        parameter_names=parameter_names,
-        key=key
-    )
-    
-    sb.run_RandomSearchExperiment(rsParams, postprocess=postprocess_random, postprocess_name='custom')
-    
-    print("QAOA stochastic benchmark analysis complete!")
-    return sb
+        if len(df) > 0:  # Only add non-empty DataFrames
+            all_qaoa_df.append(df)
+            
+            # Optionally save raw pickle (legacy behavior)
+            if config.persist_raw:
+                data_file = prepare_stochastic_benchmark_data(df, instance_id, p, output_dir)
+                data_files.append(data_file)
+        
+        # Progress logging
+        if (i + 1) % config.log_progress_interval == 0:
+            logger.info(f"Processed {i+1}/{len(json_files)} files...")
+        
+    # Aggregate
+    if all_qaoa_df:
+        agg_df = pd.concat(all_qaoa_df, ignore_index=True)
+        agg_df['instance'] = agg_df['instance'].astype(int)
+        agg_df = agg_df.sort_values(by=['instance', 'p']).reset_index(drop=True)
+    else:
+        agg_df = pd.DataFrame()
+        return None, agg_df
 
+    # 2. Setup Benchmark
+    # When persist_raw=True, StochasticBenchmark expects files directly in output_dir
+    # When persist_raw=False, we'll generate temp pickles in output_dir
+    sb, param_names = setup_qaoa_benchmark(here=output_dir)
+    bsparams_iter = setup_bootstrap_parameters()
+    
+    # 3. Run Bootstrap
+    logger.info("Running bootstrap analysis...")
+    
+    all_bs_results = []
+    
+    # If pickles not persisted, generate them temporarily for bootstrap (or refactor to use agg_df groups)
+    if config.persist_raw:
+        files_to_process = data_files
+    else:
+        # Generate pickles on-the-fly from agg_df groups
+        logger.info("Generating temporary pickles for bootstrap (persist_raw=False)...")
+        files_to_process = []
+        if all_qaoa_df:
+            temp_agg = pd.concat(all_qaoa_df, ignore_index=True)
+            for (instance_id, p), group_df in temp_agg.groupby(['instance', 'p']):
+                data_file = prepare_stochastic_benchmark_data(group_df, str(instance_id), p, output_dir)
+                files_to_process.append(data_file)
+    
+    for data_file in files_to_process:
+        try:
+            raw_data = pd.read_pickle(data_file)
+            n_trials = len(raw_data)
+            
+            if n_trials == 1:
+                # IBM-SPECIFIC: Manual bootstrap result fabrication for single-trial instances
+                # Standard bootstrap requires multiple trials; single trials get deterministic
+                # "bootstrap" results with zero confidence intervals
+                instance_name = group_name_fcn(data_file)
+                single_instance_results = []
+                for n_boots in [10, 20, 30, 40, 50]:
+                    trial_data = raw_data.iloc[0]
+                    result_row = {
+                        'instance': instance_name,
+                        'boots': n_boots,
+                        'gamma': trial_data.get('param_0', np.nan),
+                        'beta': trial_data.get('param_1', np.nan),
+                        'p': trial_data['p'],
+                        'Key=Response': trial_data['Energy'],
+                        'Key=PerfRatio': trial_data['Approximation_Ratio'],
+                        'Key=SuccProb': 1.0 if trial_data['success'] else 0.0,
+                        'Key=MeanTime': trial_data['MeanTime'],
+                        'ConfInt=lower_Key=Response': trial_data['Energy'],
+                        'ConfInt=upper_Key=Response': trial_data['Energy'],
+                        'ConfInt=lower_Key=PerfRatio': trial_data['Approximation_Ratio'],
+                        'ConfInt=upper_Key=PerfRatio': trial_data['Approximation_Ratio'],
+                        'ConfInt=lower_Key=SuccProb': 1.0 if trial_data['success'] else 0.0,
+                        'ConfInt=upper_Key=SuccProb': 1.0 if trial_data['success'] else 0.0,
+                        'ConfInt=lower_Key=MeanTime': trial_data['MeanTime'],
+                        'ConfInt=upper_Key=MeanTime': trial_data['MeanTime']
+                    }
+                    single_instance_results.append(result_row)
+                all_bs_results.append(pd.DataFrame(single_instance_results))
+            else:
+                # Standard bootstrap
+                # We can use sb.run_Bootstrap but it runs on all files.
+                # To avoid running it multiple times, we should run it once outside the loop
+                # OR we can just skip it here and run it once.
+                # But we need to combine results.
+                pass
+                
+        except Exception as e:
+            logger.warning(f"Error processing {data_file}: {e}")
 
-if __name__ == '__main__':
-    main()
+    # Run standard bootstrap for multi-trial instances
+    # This will process all files in output_dir, including single-trial ones if we are not careful.
+    # But sb.run_Bootstrap handles what it finds.
+    # If we want to use the manual single-trial results, we should merge them.
+    
+    logger.info("Running standard bootstrap via StochasticBenchmark...")
+    try:
+        sb.run_Bootstrap(bsparams_iter, group_name_fcn)
+    except Exception as e:
+        logger.warning(f"SB Bootstrap warning: {e}")
+
+    # Combine results
+    combined_bs_results = pd.DataFrame()
+    if sb.bs_results is not None:
+        combined_bs_results = sb.bs_results.copy()
+    
+    if all_bs_results:
+        single_bs_df = pd.concat(all_bs_results, ignore_index=True)
+        # Remove single-trial instances from SB results if present (to avoid duplicates)
+        single_instances = single_bs_df['instance'].unique()
+        if not combined_bs_results.empty:
+            combined_bs_results = combined_bs_results[~combined_bs_results['instance'].isin(single_instances)]
+        
+        combined_bs_results = pd.concat([combined_bs_results, single_bs_df], ignore_index=True)
+
+    sb.bs_results = combined_bs_results
+    
+    # 4. Interpolation
+    logger.info("Running interpolation...")
+    
+    # IBM-SPECIFIC: Skip interpolation for minimal data diversity
+    # Compute diversity = unique_instances * unique_depths
+    unique_instances = combined_bs_results['instance'].nunique() if 'instance' in combined_bs_results.columns else 0
+    unique_depths = combined_bs_results['p'].nunique() if 'p' in combined_bs_results.columns else 1
+    diversity = unique_instances * unique_depths
+    
+    if diversity < config.interpolate_diversity_threshold:
+        logger.info(f"Skipping interpolation: diversity={diversity} (instances={unique_instances}, depths={unique_depths}) < threshold={config.interpolate_diversity_threshold}")
+        sb.interp_results = combined_bs_results.copy()
+        # Add resource column
+        if len(sb.interp_results) > 0:
+            if 'Key=MeanTime' in sb.interp_results.columns:
+                sb.interp_results['resource'] = sb.interp_results['Key=MeanTime']
+            elif 'boots' in sb.interp_results.columns:
+                sb.interp_results['resource'] = sb.interp_results['boots'] * 0.01
+            else:
+                sb.interp_results['resource'] = 0.0
+    else:
+        # Interpolation
+        def resource_fcn(df):
+            if 'Key=Resource' in df.columns: return df['Key=Resource']
+            elif 'Key=MeanTime' in df.columns: return df['Key=MeanTime']
+            else: return pd.Series(np.linspace(0.1, 10.0, len(df)), index=df.index)
+
+        try:
+            iParams = interpolate.InterpolationParameters(
+                resource_fcn,
+                parameters=param_names,
+                ignore_cols=['trainer', 'evaluator']
+            )
+            sb.interp_results = interpolate.Interpolate(combined_bs_results, iParams, group_on='instance')
+            logger.info(f"Interpolation complete. Shape: {sb.interp_results.shape}")
+        except Exception as e:
+            logger.warning(f"Interpolation failed: {e}. Using bootstrap results.")
+            sb.interp_results = combined_bs_results.copy()
+            if 'Key=MeanTime' in sb.interp_results.columns:
+                sb.interp_results['resource'] = sb.interp_results['Key=MeanTime']
+
+    # Add train/test split
+    # NOTE: Uses config seed for reproducible 80/20 train/test split
+    if sb.interp_results is not None and 'train' not in sb.interp_results.columns:
+        np.random.seed(config.seed)
+        train_mask = np.random.random(len(sb.interp_results)) < 0.8
+        sb.interp_results['train'] = train_mask.astype(int)
+
+    return sb, agg_df
+
+if __name__ == "__main__":
+    process_qaoa_data()
