@@ -158,4 +158,18 @@ notebooks/example_data/sk_pleiades_n=100/checkpoints/*.DS_Store
 
 # Project-specific data artifacts (examples, runs, plots)
 examples/IBM_QAOA/exp_raw/
-examples/IBM_QAOA/R3R/
+examples/**/R3R/
+examples/**/runs/
+examples/**/plots/
+examples/**/progress/
+examples/**/checkpoints/
+plots/
+progress/
+checkpoints/
+*.pkl
+*.pkl.gz
+*.npz
+*.npy
+
+# Accidental file created at repo root
+stochastic-benchmark
