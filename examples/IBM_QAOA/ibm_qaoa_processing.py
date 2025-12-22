@@ -51,6 +51,77 @@ class QAOAResult:
     optimized_params: List[float] = field(default_factory=list)
     energy_history: List[float] = field(default_factory=list)
 
+def load_minmax_cuts(minmax_dir: str = 'R3R/minmax_cuts') -> Dict[str, Dict[str, float]]:
+    """
+    Load minmax cuts data from JSON files.
+    
+    Args:
+        minmax_dir: Directory containing minmax cuts JSON files
+        
+    Returns:
+        Dictionary mapping instance_id to minmax cuts data
+        Format: {instance_id: {'min_cut': float, 'max_cut': float, 'sum_weights': float}}
+    """
+    minmax_data = {}
+    
+    if not os.path.exists(minmax_dir):
+        logger.warning(f"Minmax cuts directory not found: {minmax_dir}")
+        return minmax_data
+    
+    json_files = glob.glob(os.path.join(minmax_dir, '*.json'))
+    logger.info(f"Loading {len(json_files)} minmax cuts files from {minmax_dir}")
+    
+    for json_file in json_files:
+        try:
+            with open(json_file, 'r') as f:
+                data = json.load(f)
+            
+            # Extract instance ID from filename (format: 000_10nodes_random3regular_maxmin_cut.json)
+            filename = os.path.basename(json_file)
+            match = re.match(r'(\d+)_', filename)
+            if match:
+                instance_id = match.group(1)
+                minmax_data[instance_id] = {
+                    'min_cut': data.get('min_cut', 0.0),
+                    'max_cut': data.get('max_cut', 0.0),
+                    'sum_weights': data.get('sum_of_weights', 0.0)
+                }
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Error loading minmax cuts file {json_file}: {e}")
+    
+    logger.info(f"Loaded minmax cuts data for {len(minmax_data)} instances")
+    return minmax_data
+
+def maxcut_approximation_ratio(energy: float, min_cut: float, max_cut: float, sum_weights: float) -> float:
+    """
+    Calculate MaxCut approximation ratio using the formula:
+    cut_val = energy + 0.5 * sum_weights
+    approximation_ratio = (cut_val - min_cut) / (max_cut - min_cut)
+    
+    Args:
+        energy: Energy value from QAOA result
+        min_cut: Minimum cut value for the instance
+        max_cut: Maximum cut value for the instance
+        sum_weights: Sum of all edge weights
+        
+    Returns:
+        Approximation ratio (0.0 to 1.0), or NaN if calculation fails
+    """
+    if np.isnan(energy):
+        return np.nan
+    
+    # Calculate cut value
+    cut_val = energy + 0.5 * sum_weights
+    
+    # Calculate approximation ratio
+    denominator = max_cut - min_cut
+    if denominator == 0:
+        logger.warning("Max cut equals min cut - cannot calculate approximation ratio")
+        return np.nan
+    
+    approx_ratio = (cut_val - min_cut) / denominator
+    return approx_ratio
+
 def parse_qaoa_trial(trial_data: Dict[str, Any], trial_id: int, instance_id: str, depth: int) -> QAOAResult:
     """
     Parse a single trial dictionary into a QAOAResult object.
@@ -106,7 +177,7 @@ def load_qaoa_results(json_data: Dict[str, Any]) -> List[QAOAResult]:
             results.append(res)
     return results
 
-def convert_to_dataframe(qaoa_results: List[QAOAResult], instance_id: str, p: int, optimized: Optional[str] = None) -> pd.DataFrame:
+def convert_to_dataframe(qaoa_results: List[QAOAResult], instance_id: str, p: int, optimized: Optional[str] = None, minmax_data: Optional[Dict[str, Dict[str, float]]] = None) -> pd.DataFrame:
     """
     Convert a list of QAOA result objects to a DataFrame.
     
@@ -115,18 +186,36 @@ def convert_to_dataframe(qaoa_results: List[QAOAResult], instance_id: str, p: in
         instance_id: Instance identifier
         p: Circuit depth
         optimized: Optimization flag ('opt', 'noOpt', or None if not specified)
+        minmax_data: Dictionary of minmax cuts data for calculating approximation ratios
     """
     data = []
     for res in qaoa_results:
         # Extract parameters
         params = res.optimized_params
         
+        # Calculate approximation ratio using minmax cuts data if available
+        approx_ratio = res.approximation_ratio
+        # Check if energy is numeric and not NaN
+        energy_is_valid = isinstance(res.energy, (int, float)) and not np.isnan(res.energy)
+        if minmax_data and instance_id in minmax_data and energy_is_valid:
+            cuts = minmax_data[instance_id]
+            calculated_ratio = maxcut_approximation_ratio(
+                res.energy,
+                cuts['min_cut'],
+                cuts['max_cut'],
+                cuts['sum_weights']
+            )
+            # Use calculated ratio if original is NaN, otherwise prefer calculated
+            approx_is_valid = isinstance(approx_ratio, (int, float)) and not np.isnan(approx_ratio)
+            if not approx_is_valid or not np.isnan(calculated_ratio):
+                approx_ratio = calculated_ratio
+        
         row = {
             'trial_id': res.trial_id,
             'instance': instance_id,
             'p': p,
             'Energy': res.energy,
-            'Approximation_Ratio': res.approximation_ratio,
+            'Approximation_Ratio': approx_ratio,
             'MeanTime': res.train_duration,
             'trainer': res.trainer_name,
             'evaluator': res.evaluator,
@@ -245,7 +334,7 @@ def group_name_fcn(raw_filename):
     except ValueError:
         return raw_filename
 
-def process_qaoa_data(json_pattern: str = "R3R/*.json", output_dir: str = "exp_raw", config: Optional[ProcessingConfig] = None) -> Tuple[stochastic_benchmark.stochastic_benchmark, pd.DataFrame]:
+def process_qaoa_data(json_pattern: str = "R3R/*.json", output_dir: str = "exp_raw", config: Optional[ProcessingConfig] = None, minmax_dir: str = "R3R/minmax_cuts") -> Tuple[stochastic_benchmark.stochastic_benchmark, pd.DataFrame]:
     """
     Main processing function.
     
@@ -255,9 +344,13 @@ def process_qaoa_data(json_pattern: str = "R3R/*.json", output_dir: str = "exp_r
         json_pattern: Glob pattern for JSON files
         output_dir: Directory for output artifacts
         config: Processing configuration (uses defaults if None)
+        minmax_dir: Directory containing minmax cuts JSON files
     """
     if config is None:
         config = ProcessingConfig()
+    
+    # Load minmax cuts data for approximation ratio calculation
+    minmax_data = load_minmax_cuts(minmax_dir)
     
     # 1. Load and Parse
     # IBM-SPECIFIC: File discovery via glob pattern
@@ -306,8 +399,8 @@ def process_qaoa_data(json_pattern: str = "R3R/*.json", output_dir: str = "exp_r
         except (ValueError, IndexError):
             p = None
             
-        # Convert to DataFrame
-        df = convert_to_dataframe(qaoa_results, instance_id, p, optimized)
+        # Convert to DataFrame with minmax cuts data
+        df = convert_to_dataframe(qaoa_results, instance_id, p, optimized, minmax_data)
         
         # IBM-SPECIFIC: Add GTMinEnergy proxy when ground truth unavailable
         # Uses minimum observed energy as best-known value for bootstrap update_rules
