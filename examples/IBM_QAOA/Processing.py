@@ -163,34 +163,57 @@ class QAOAHardware:
 
         return all_data
 
+import json
+from pathlib import Path
+
+
 class QAOATraining:
 
-    def __init__(self, save_file, duration, pre_processor_name, 
-                 train_duration_iter, energy_iter, trainer_name_iter, 
-                 train_duration_layer, energy_layer, trainer_name_layer, 
-                 num_depth_iter):  # Each isntance of class holds uniue data
+    def __init__(
+        self,
+        save_file,
+        duration,
+        pre_processor_name,
+        train_duration_iter,
+        energy_iter,
+        trainer_name_iter,
+        train_duration_layer,
+        energy_layer,
+        trainer_name_layer,
+        num_depth_iter,
+    ):
         self.instance_name = save_file
         self.pre_processing_time = duration
         self.pre_processor_name = pre_processor_name
+
         self.train_duration_per_iter = train_duration_iter
         self.expected_energy_per_iter = energy_iter
         self.trainer_name_per_iter = trainer_name_iter
+
         self.train_duration_per_layer = train_duration_layer
         self.expected_energy_per_layer = energy_layer
         self.trainer_name_per_layer = trainer_name_layer
+
         self.num_depth_iter = num_depth_iter
 
-
-    # Method to return problem instance file paths for trainig
     @classmethod
-    def locate_training_instance(cls, final_path_training: str, graph_type: str = "default", 
-                                num_nodes: str = "default", p: str = "default",
-                                ER_probability: str = None, swap_layers: str = None, 
-                                degree: str = None, instance: str = "default", bond_dimension: str = None,
-                                opt: bool = False, max_weight: str = None,
-                                trainer: str = "default", 
-                                Evaluator: str = "default") -> list[Path]:
-        
+    def locate_training_instance(
+        cls,
+        final_path_training: str,
+        graph_type: str = "default",
+        num_nodes: str = "default",
+        p: str = "default",
+        ER_probability: str = None,
+        swap_layers: str = None,
+        degree: str = None,
+        instance: str = "default",
+        bond_dimension: str = None,
+        opt: bool = False,
+        max_weight: str = None,
+        trainer: str = "default",
+        Evaluator: str = "default",
+    ) -> list[Path]:
+
         if graph_type == "heavy_hex":
             if opt:
                 if Evaluator == "MPS":
@@ -206,7 +229,7 @@ class QAOATraining:
                     instance_path = f"*{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
                 else:
                     instance_path = f"*{instance}N{num_nodes}HH*_MC_{trainer}_SV_noOpt_{p}.json"
-        
+
         elif graph_type == "erdos_renyi":
             if opt:
                 if Evaluator == "MPS":
@@ -222,7 +245,7 @@ class QAOATraining:
                     instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
                 else:
                     instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_SV_noOpt_{p}.json"
-        
+
         elif graph_type == "line_to_full":
             if opt:
                 if Evaluator == "MPS":
@@ -238,7 +261,7 @@ class QAOATraining:
                     instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
                 else:
                     instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_SV_noOpt_{p}.json"
-            
+
         elif graph_type == "random_regular":
             if opt:
                 if Evaluator == "MPS":
@@ -254,41 +277,31 @@ class QAOATraining:
                     instance_path = f"*{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
                 else:
                     instance_path = f"*{instance}N{num_nodes}R{degree}R_MC_{trainer}_SV_noOpt_{p}.json"
-            
         else:
             return []
 
-        instance_paths_final_training = list(Path(final_path_training).glob(instance_path))
-        
-        return instance_paths_final_training
+        return list(Path(final_path_training).glob(instance_path))
 
-    # Method to load problem instance file paths for training and return class instances
     @classmethod
     def load_training_instance(cls, instance_path: Path) -> "QAOATraining":
 
         with instance_path.open("r") as f:
             data = json.load(f)
 
-        # Pre-Processing stage
         args = data.get("args")
-        if not args:
+        if args is None or "save_file" not in args:
             return None
-        # Required job args
-        if "save_file" not in args:
-            return None
-        instance_name = args.get("save_file")
+        instance_name = args["save_file"]
 
         pre_processing = data.get("pre_processing")
-        if not pre_processing:
+        if pre_processing is None:
             return None
-        # Required pre_processing args
         if "pre_processor_name" not in pre_processing or "duration" not in pre_processing:
             return None
-        pre_processor_name = pre_processing.get("pre_processor_name")
-        pre_processing_time = pre_processing.get("duration")
 
-        # Process classial optimizer args per iteration
-        # Count number of top-level integer entries
+        pre_processor_name = pre_processing["pre_processor_name"]
+        pre_processing_time = pre_processing["duration"]
+
         num_iterations = []
         for key in data.keys():
             try:
@@ -301,28 +314,27 @@ class QAOATraining:
         train_duration_per_iter = []
         expected_energy_per_iter = []
         trainer_name_per_iter = []
+
         train_duration_per_layer = []
         expected_energy_per_layer = []
         trainer_name_per_layer = []
 
         num_depth_iter = []
 
-        for i, element in enumerate(num_iterations):
-            # Outer hyperparameter / info checks (warm-starts included)
+        for element in num_iterations:
             classical_iteration = data.get(element)
-            if not classical_iteration:
-                continue
-            train_duration_per_iter.append(classical_iteration.get("train_duration"))
-            expected_energy_per_iter.append(classical_iteration.get("energy"))
-
-            if not train_duration_per_iter[i] and not expected_energy_per_iter[i]:
-                continue
-            
-            trainer_name_per_iter.append(classical_iteration.get("trainer")) # List of trainer dictionaries
-            if not classical_iteration.get("trainer"):
+            if classical_iteration is None:
                 continue
 
-            # Start inner depth wise hyperparameter / info checks
+            if "train_duration" not in classical_iteration or "energy" not in classical_iteration:
+                continue
+            if "trainer" not in classical_iteration:
+                continue
+
+            train_duration_per_iter.append(classical_iteration["train_duration"])
+            expected_energy_per_iter.append(classical_iteration["energy"])
+            trainer_name_per_iter.append(classical_iteration["trainer"])
+
             current_iter_depth_keys = []
             current_iter_durations = []
             current_iter_energies = []
@@ -331,39 +343,43 @@ class QAOATraining:
             for key2 in classical_iteration.keys():
                 try:
                     int(key2)
-                    current_iter_depth_keys.append (key2)
+                    current_iter_depth_keys.append(key2)
                 except ValueError:
                     pass
-            current_iter_depth_keys = sorted(current_iter_depth_keys, key=int) 
+            current_iter_depth_keys = sorted(current_iter_depth_keys, key=int)
 
             for element2 in current_iter_depth_keys:
                 layer_iteration = classical_iteration.get(element2)
-                if not layer_iteration:
+                if layer_iteration is None:
                     continue
 
-                if not layer_iteration.get("train_duration") and not layer_iteration.get("energy"):
+                if "train_duration" not in layer_iteration or "energy" not in layer_iteration:
                     continue
-                current_iter_durations.append(layer_iteration.get("train_duration"))
-                current_iter_energies.append(layer_iteration.get("energy"))
-                
-                if not layer_iteration.get("trainer"):
-                    continue 
-                current_iter_trainers.append(layer_iteration.get("trainer")) # List of trainer dictionaries per layer per iter
- 
-                
-            # Store all inner layer results for each outer layer
+                if "trainer" not in layer_iteration:
+                    continue
+
+                current_iter_durations.append(layer_iteration["train_duration"])
+                current_iter_energies.append(layer_iteration["energy"])
+                current_iter_trainers.append(layer_iteration["trainer"])
+
             num_depth_iter.append(current_iter_depth_keys)
             train_duration_per_layer.append(current_iter_durations)
             expected_energy_per_layer.append(current_iter_energies)
-            trainer_name_per_layer.append(current_iter_trainers)         
+            trainer_name_per_layer.append(current_iter_trainers)
 
-        all_training_data = cls(instance_name, pre_processing_time,
-                        pre_processor_name, train_duration_per_iter,
-                        expected_energy_per_iter, trainer_name_per_iter,
-                        train_duration_per_layer, expected_energy_per_layer,
-                        trainer_name_per_layer, num_depth_iter)
+        return cls(
+            instance_name,
+            pre_processing_time,
+            pre_processor_name,
+            train_duration_per_iter,
+            expected_energy_per_iter,
+            trainer_name_per_iter,
+            train_duration_per_layer,
+            expected_energy_per_layer,
+            trainer_name_per_layer,
+            num_depth_iter,
+        )
 
-        return all_training_data
 
 
 
