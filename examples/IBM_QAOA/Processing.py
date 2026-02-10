@@ -166,18 +166,19 @@ class QAOAHardware:
 class QAOATraining:
 
     def __init__(self, save_file, duration, pre_processor_name, 
-                 train_duration, energy, trainer_name, 
-                 train_duration, energy, trainer_name
-                ):  # Each isntance of class holds uniue data
+                 train_duration_iter, energy_iter, trainer_name_iter, 
+                 train_duration_layer, energy_layer, trainer_name_layer, 
+                 num_depth_iter):  # Each isntance of class holds uniue data
         self.instance_name = save_file
         self.pre_processing_time = duration
         self.pre_processor_name = pre_processor_name
-        self.training_duration_per_iter = train_duration
-        self.expected_energy_per_iter = energy
-        self.trainer_name_per_iter = trainer_name
-        self.training_duration_per_layer = train_duration
-        self.expected_energy_per_layer = energy
-        self.trainer_name_per_layer = trainer_name
+        self.train_duration_per_iter = train_duration_iter
+        self.expected_energy_per_iter = energy_iter
+        self.trainer_name_per_iter = trainer_name_iter
+        self.train_duration_per_layer = train_duration_layer
+        self.expected_energy_per_layer = energy_layer
+        self.trainer_name_per_layer = trainer_name_layer
+        self.num_depth_iter = num_depth_iter
 
 
     # Method to return problem instance file paths for trainig
@@ -265,28 +266,26 @@ class QAOATraining:
     @classmethod
     def load_training_instance(cls, instance_path: Path) -> "QAOATraining":
 
-        all_data: "QAOATraining"
-
         with instance_path.open("r") as f:
             data = json.load(f)
 
         # Pre-Processing stage
         args = data.get("args")
         if not args:
-            return
+            return None
         # Required job args
         if "save_file" not in args:
-            return 0
+            return None
         instance_name = args.get("save_file")
 
         pre_processing = data.get("pre_processing")
         if not pre_processing:
-            return 0
+            return None
         # Required pre_processing args
         if "pre_processor_name" not in pre_processing or "duration" not in pre_processing:
-            return 0
+            return None
         pre_processor_name = pre_processing.get("pre_processor_name")
-        duration = pre_processing.get("duration")
+        pre_processing_time = pre_processing.get("duration")
 
         # Process classial optimizer args per iteration
         # Count number of top-level integer entries
@@ -297,12 +296,16 @@ class QAOATraining:
                 num_iterations.append(key)
             except ValueError:
                 pass
+        num_iterations = sorted(num_iterations, key=int)
 
         train_duration_per_iter = []
         expected_energy_per_iter = []
-        train_name_per_iter = []
-        trainer_name_per_layer = [[]]
-        num_depth_iter = [[]]
+        trainer_name_per_iter = []
+        train_duration_per_layer = []
+        expected_energy_per_layer = []
+        trainer_name_per_layer = []
+
+        num_depth_iter = []
 
         for i, element in enumerate(num_iterations):
             # Outer hyperparameter / info checks (warm-starts included)
@@ -312,7 +315,7 @@ class QAOATraining:
             train_duration_per_iter.append(classical_iteration.get("train_duration"))
             expected_energy_per_iter.append(classical_iteration.get("energy"))
 
-            if not train_duration_per_iter and not expected_energy_per_iter:
+            if not train_duration_per_iter[i] and not expected_energy_per_iter[i]:
                 continue
             
             trainer_name_per_iter.append(classical_iteration.get("trainer")) # List of trainer dictionaries
@@ -320,65 +323,47 @@ class QAOATraining:
                 continue
 
             # Start inner depth wise hyperparameter / info checks
-            for i, key2 in enumerate(classical_iteration.keys()):
+            current_iter_depth_keys = []
+            current_iter_durations = []
+            current_iter_energies = []
+            current_iter_trainers = []
+
+            for key2 in classical_iteration.keys():
                 try:
                     int(key2)
-                    num_depth_iter[i].append(key2)
+                    current_iter_depth_keys.append (key2)
                 except ValueError:
                     pass
+            current_iter_depth_keys = sorted(current_iter_depth_keys, key=int) 
+
+            for element2 in current_iter_depth_keys:
+                layer_iteration = classical_iteration.get(element2)
+                if not layer_iteration:
+                    continue
+
+                if not layer_iteration.get("train_duration") and not layer_iteration.get("energy"):
+                    continue
+                current_iter_durations.append(layer_iteration.get("train_duration"))
+                current_iter_energies.append(layer_iteration.get("energy"))
                 
-                for element2 in num_depth_iter[i]:
-                    layer_iteration = classical_iteration.get(element2)
-                    if not layer_iteration:
-                        continue
-                    train_duration_per_layer.append(classical_iteration.get("train_duration"))
-                    expected_energy_per_layer.append(classical_iteration.get("energy"))
+                if not layer_iteration.get("trainer"):
+                    continue 
+                current_iter_trainers.append(layer_iteration.get("trainer")) # List of trainer dictionaries per layer per iter
+ 
+                
+            # Store all inner layer results for each outer layer
+            num_depth_iter.append(current_iter_depth_keys)
+            train_duration_per_layer.append(current_iter_durations)
+            expected_energy_per_layer.append(current_iter_energies)
+            trainer_name_per_layer.append(current_iter_trainers)         
 
-                    if not train_duration_per_layer and not expected_energy_per_layer:
-                        continue
-            
-                    trainer_name_per_layer[i].append(classical_iteration.get("trainer")) # List of trainer dictionaries per layer per iter
-                    if not classical_iteration.get("trainer"):
-                        continue
+        all_training_data = cls(instance_name, pre_processing_time,
+                        pre_processor_name, train_duration_per_iter,
+                        expected_energy_per_iter, trainer_name_per_iter,
+                        train_duration_per_layer, expected_energy_per_layer,
+                        trainer_name_per_layer, num_depth_iter)
 
-
-
-
-
-                    
-
-                    
-
-
-
-
-
-
-
-
-
-            # If any essential circuit info is missing, skip
-            if any(v is None for v in (
-                instance_name,
-                problem_class,
-                training_method,
-                expected_energy,
-            )):
-                continue
-
-            run = cls(
-                instance_name,
-                QPU_time,
-                num_shots,
-                problem_class,
-                training_method,
-                expected_energy,
-                result_file,
-            )
-
-            all_data.append(run)
-
-        return all_data
+        return all_training_data
 
 
 
