@@ -20,12 +20,10 @@ import interpolate
 import stats
 from utils_ws import *
 
-# Path config and data imports
+# Path config
 cwd = Path.cwd()
-parent = cwd.parent
-data_dir = f"{parent}/QAOA-Parameter-Setting/data"
 
-def set_data_path(hardware: bool = False, training: bool = True, graph_type: str = "default") -> str:    
+def set_data_path(data_dir: str = "default", hardware: bool = False, training: bool = True, graph_type: str = "default") -> str:    
     if hardware:
         if graph_type == "erdos_renyi":
             final_path_hardware = f"{data_dir}/hardware/{graph_type}"
@@ -57,7 +55,7 @@ def set_data_path(hardware: bool = False, training: bool = True, graph_type: str
     else:
         return final_path_hardware
 
-def load_problem_instance(problem_path: str = f"{parent}/instances", graph_type: str = "default") -> str:
+def load_problem_instance(problem_path: str = "default", graph_type: str = "default") -> str:
     if graph_type == "erdos_renyi" :
         final_instance_path = f"{problem_path}/{graph_type}"
     elif graph_type == "heavy_hex":
@@ -83,23 +81,24 @@ class QAOAHardware:
 
     # Method to return problem instance file paths for hardware
     @classmethod
-    def locate_hardware_instance(cls, final_path_hardware: str, graph_type: str = "default", num_nodes: str = "default", p: str = "default",
-        ER_probability: str = None, swap_layers: str = None, degree: str = None, instance: str = "default") -> list[Path]:
+    def locate_hardware_instance(cls, final_path_hardware: str, graph_type: str = "default", instance: str = "default", num_nodes: str = "default", p: str = "default",
+        ER_probability: str = None, swap_layers: str = None, degree: str = None) -> list[Path]:
         
         if graph_type == "heavy_hex":
-            instance_path = f"{instance}N{num_nodes}HH*_{p}_*.json"
+            instance_path = f"00{instance}N{num_nodes}HH*_{p}_*.json"
         elif graph_type == "erdos_renyi":
-            instance_path = f"{instance}N{num_nodes}ER{ER_probability}_{p}_*.json"
+            instance_path = f"00{instance}N{num_nodes}ER{ER_probability}_{p}_*.json"
         elif graph_type == "line_to_full":
-            instance_path = f"{instance}N{num_nodes}L2S{swap_layers}_{p}_*.json"
+            instance_path = f"00{instance}N{num_nodes}L2S{swap_layers}_{p}_*.json"
         elif graph_type == "random_regular":
-            instance_path = f"{instance}N{num_nodes}R{degree}R*_{p}_*.json"
+            instance_path = f"00{instance}N{num_nodes}R{degree}R*_{p}_*.json"
         else:
             return []
 
         instance_paths_final_hardware = list(Path(final_path_hardware).glob(instance_path))
+
         
-        return instance_paths_final_harware
+        return instance_paths_final_hardware
 
     # Method to load problem instance file paths for hardware and return class instances
     @classmethod
@@ -115,6 +114,10 @@ class QAOAHardware:
             content = [content]
 
         for data in content:
+            
+            # Job-level fields
+            QPU_time = data.get("total_time")
+            num_shots = data.get("num_shots")
 
             # Check that this is a circuit-level record 
             metadata = data.get("metadata")
@@ -145,10 +148,6 @@ class QAOAHardware:
             )):
                 continue
 
-            # Job-level fields
-            QPU_time = data.get("total_time")
-            num_shots = data.get("num_shots")
-
             run = cls(
                 instance_name,
                 QPU_time,
@@ -162,10 +161,6 @@ class QAOAHardware:
             all_data.append(run)
 
         return all_data
-
-import json
-from pathlib import Path
-
 
 class QAOATraining:
 
@@ -201,12 +196,12 @@ class QAOATraining:
         cls,
         final_path_training: str,
         graph_type: str = "default",
+        instance: str = "default",
         num_nodes: str = "default",
         p: str = "default",
         ER_probability: str = None,
         swap_layers: str = None,
         degree: str = None,
-        instance: str = "default",
         bond_dimension: str = None,
         opt: bool = False,
         max_weight: str = None,
@@ -217,66 +212,66 @@ class QAOATraining:
         if graph_type == "heavy_hex":
             if opt:
                 if Evaluator == "MPS":
-                    instance_path = f"*{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
                 elif Evaluator == "PP":
-                    instance_path = f"*{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
                 else:
-                    instance_path = f"*{instance}N{num_nodes}HH*_MC_{trainer}_SV_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_SV_{p}.json"
             else:
                 if Evaluator == "MPS":
-                    instance_path = f"*{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
                 elif Evaluator == "PP":
-                    instance_path = f"*{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
                 else:
-                    instance_path = f"*{instance}N{num_nodes}HH*_MC_{trainer}_SV_noOpt_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_SV_noOpt_{p}.json"
 
         elif graph_type == "erdos_renyi":
             if opt:
                 if Evaluator == "MPS":
-                    instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
                 elif Evaluator == "PP":
-                    instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
                 else:
-                    instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_SV_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_SV_{p}.json"
             else:
                 if Evaluator == "MPS":
-                    instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
                 elif Evaluator == "PP":
-                    instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
                 else:
-                    instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_SV_noOpt_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_SV_noOpt_{p}.json"
 
         elif graph_type == "line_to_full":
             if opt:
                 if Evaluator == "MPS":
-                    instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
                 elif Evaluator == "PP":
-                    instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
                 else:
-                    instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_SV_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_SV_{p}.json"
             else:
                 if Evaluator == "MPS":
-                    instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
                 elif Evaluator == "PP":
-                    instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
                 else:
-                    instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_SV_noOpt_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_SV_noOpt_{p}.json"
 
         elif graph_type == "random_regular":
             if opt:
                 if Evaluator == "MPS":
-                    instance_path = f"*{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
                 elif Evaluator == "PP":
-                    instance_path = f"*{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
                 else:
-                    instance_path = f"*{instance}N{num_nodes}R{degree}R_MC_{trainer}_SV_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_SV_{p}.json"
             else:
                 if Evaluator == "MPS":
-                    instance_path = f"*{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
                 elif Evaluator == "PP":
-                    instance_path = f"*{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
                 else:
-                    instance_path = f"*{instance}N{num_nodes}R{degree}R_MC_{trainer}_SV_noOpt_{p}.json"
+                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_SV_noOpt_{p}.json"
         else:
             return []
 
