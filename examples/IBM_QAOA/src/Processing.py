@@ -96,7 +96,6 @@ class QAOAHardware:
             return []
 
         instance_paths_final_hardware = list(Path(final_path_hardware).glob(instance_path))
-
         
         return instance_paths_final_hardware
 
