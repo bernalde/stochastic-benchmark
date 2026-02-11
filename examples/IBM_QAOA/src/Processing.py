@@ -23,7 +23,7 @@ from utils_ws import *
 # Path config
 cwd = Path.cwd()
 
-def set_data_path(data_dir: str = "default", hardware: bool = False, training: bool = True, graph_type: str = "default") -> str:    
+def set_data_path(data_dir: str, hardware: bool = False, training: bool = True, graph_type: str = "default") -> str:    
     if hardware:
         if graph_type == "erdos_renyi":
             final_path_hardware = f"{data_dir}/hardware/{graph_type}"
@@ -55,7 +55,7 @@ def set_data_path(data_dir: str = "default", hardware: bool = False, training: b
     else:
         return final_path_hardware
 
-def load_problem_instance(problem_path: str = "default", graph_type: str = "default") -> str:
+def load_problem_instance(problem_path: str, graph_type: str) -> str:
     if graph_type == "erdos_renyi" :
         final_instance_path = f"{problem_path}/{graph_type}"
     elif graph_type == "heavy_hex":
@@ -81,7 +81,7 @@ class QAOAHardware:
 
     # Method to return problem instance file paths for hardware
     @classmethod
-    def locate_hardware_instance(cls, final_path_hardware: str, graph_type: str = "default", instance: str = "default", num_nodes: str = "default", p: str = "default",
+    def locate_hardware_instance(cls, final_path_hardware: str, graph_type: str, instance: str, num_nodes: str, p: str,
         ER_probability: str = None, swap_layers: str = None, degree: str = None) -> list[Path]:
         
         if graph_type == "heavy_hex":
@@ -191,22 +191,10 @@ class QAOATraining:
         self.num_depth_iter = num_depth_iter
 
     @classmethod
-    def locate_training_instance(
-        cls,
-        final_path_training: str,
-        graph_type: str = "default",
-        instance: str = "default",
-        num_nodes: str = "default",
-        p: str = "default",
-        ER_probability: str = None,
-        swap_layers: str = None,
-        degree: str = None,
-        bond_dimension: str = None,
-        opt: bool = False,
-        max_weight: str = None,
-        trainer: str = "default",
-        Evaluator: str = "default",
-    ) -> list[Path]:
+    def locate_training_instance(cls, final_path_training: str, graph_type: str, instance: str, num_nodes: str, p: str,
+                                 trainer: str, Evaluator: str, opt: bool = False, ER_probability: str = None,
+                                 swap_layers: str = None, degree: str = None, bond_dimension: str = None,
+                                 max_weight: str = None) -> list[Path]:
 
         if graph_type == "heavy_hex":
             if opt:
