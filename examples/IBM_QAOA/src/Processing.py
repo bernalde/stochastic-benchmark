@@ -112,12 +112,12 @@ class QAOAHardware:
         if not isinstance(content, list):
             content = [content]
 
+        # Job-level fields are always on top
+        QPU_time = content[0].get("total_time")
+        num_shots = content[0].get("num_shots")
+
         for data in content:
             
-            # Job-level fields
-            QPU_time = data.get("total_time")
-            num_shots = data.get("num_shots")
-
             # Check that this is a circuit-level record 
             metadata = data.get("metadata")
             if not metadata:
