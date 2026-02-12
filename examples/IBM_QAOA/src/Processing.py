@@ -24,6 +24,25 @@ from utils_ws import *
 cwd = Path.cwd()
 
 def set_data_path(data_dir: str, hardware: bool = False, training: bool = True, graph_type: str = "default") -> str:    
+    """Build data directory paths for QAOA runs.
+
+    Parameters
+    ----------
+    data_dir : str
+        Base directory containing the `hardware/` and/or `training/` subfolders.
+    hardware : bool, default=False
+        If True, build the hardware path.
+    training : bool, default=True
+        If True, build the training path.
+    graph_type : str, default="default"
+        Graph family identifier (e.g., "erdos_renyi", "heavy_hex").
+
+    Returns
+    -------
+    str or tuple of (str, str)
+        If `hardware and training` is True, returns `(hardware_path, training_path)`.
+        Otherwise returns the requested single path.
+    """
     if hardware:
         if graph_type == "erdos_renyi":
             final_path_hardware = f"{data_dir}/hardware/{graph_type}"
@@ -56,6 +75,20 @@ def set_data_path(data_dir: str, hardware: bool = False, training: bool = True, 
         return final_path_hardware
 
 def load_problem_instance(problem_path: str, graph_type: str) -> str:
+    """Return the directory containing problem instances for a graph family.
+
+    Parameters
+    ----------
+    problem_path : str
+        Base directory containing per-graph-type subfolders.
+    graph_type : str
+        Graph family identifier.
+
+    Returns
+    -------
+    str
+        Path to the directory containing instances for `graph_type`.
+    """
     if graph_type == "erdos_renyi" :
         final_instance_path = f"{problem_path}/{graph_type}"
     elif graph_type == "heavy_hex":
@@ -68,6 +101,26 @@ def load_problem_instance(problem_path: str, graph_type: str) -> str:
     return final_instance_path
 
 class QAOAHardware:
+
+    """Container for a single QAOA hardware run parsed from IBM JSON output.
+
+    Attributes
+    ----------
+    instance_name : str
+        Short instance identifier.
+    QPU_time : float or int or None
+        Job-level total QPU time (from the JSON `total_time` field).
+    num_shots : int or None
+        Number of shots used for the hardware run.
+    problem_class : str
+        Problem class label (e.g., MaxCut).
+    training_method : str
+        Training method used to generate parameters.
+    expected_energy : float
+        Evaluated energy reported by the hardware run.
+    result_file : str or None
+        Optional reference to a result file.
+    """
 
     def __init__(self, short_name, total_time, num_shots, 
                 problem_class, method, eval_energy, result_file):  # Each isntance of class holds uniue data
@@ -83,6 +136,32 @@ class QAOAHardware:
     @classmethod
     def locate_hardware_instance(cls, final_path_hardware: str, graph_type: str, instance: str, num_nodes: str, p: str,
         ER_probability: str = None, swap_layers: str = None, degree: str = None) -> list[Path]:
+        """Locate hardware JSON files matching an instance specification.
+
+        Parameters
+        ----------
+        final_path_hardware : str
+            Directory containing hardware JSON files.
+        graph_type : str
+            Graph family identifier.
+        instance : str
+            Instance index/identifier (as used in the filename pattern).
+        num_nodes : str
+            Number of nodes encoded in the filename.
+        p : str
+            QAOA depth parameter encoded in the filename.
+        ER_probability : str, optional
+            Erdos-Renyi probability suffix used for `graph_type="erdos_renyi"`.
+        swap_layers : str, optional
+            Swap-layer count used for `graph_type="line_to_full"`.
+        degree : str, optional
+            Degree used for `graph_type="random_regular"`.
+
+        Returns
+        -------
+        list of pathlib.Path
+            Matching JSON file paths (possibly empty).
+        """
         
         if graph_type == "heavy_hex":
             instance_path = f"00{instance}N{num_nodes}HH*_{p}_*.json"
@@ -102,6 +181,22 @@ class QAOAHardware:
     # Method to load problem instance file paths for hardware and return class instances
     @classmethod
     def load_hardware_instance(cls, instance_path: Path) -> list["QAOAHardware"]:
+        """Parse a hardware JSON file into `QAOAHardware` records.
+
+        Parameters
+        ----------
+        instance_path : pathlib.Path
+            Path to a hardware JSON file (job-level record plus circuit-level records).
+
+        Returns
+        -------
+        list of QAOAHardware
+            One object per circuit-level record containing `eval_energy`.
+
+        Notes
+        -----
+        Performs file I/O and skips incomplete records.
+        """
 
         all_data: list["QAOAHardware"] = []
 
@@ -163,6 +258,32 @@ class QAOAHardware:
 
 class QAOATraining:
 
+    """Container for QAOA training metadata parsed from training JSON output.
+
+    Attributes
+    ----------
+    instance_name : str
+        Instance identifier (typically from `args.save_file`).
+    pre_processing_time : float or int or None
+        Duration reported for preprocessing.
+    pre_processor_name : str or None
+        Preprocessor name reported in the JSON.
+    train_duration_per_iter : list
+        Training durations per outer iteration.
+    expected_energy_per_iter : list
+        Energies per outer iteration.
+    trainer_name_per_iter : list
+        Trainer dictionaries per outer iteration.
+    train_duration_per_layer : list of list
+        Training durations per layer-step nested within each outer iteration.
+    expected_energy_per_layer : list of list
+        Energies per layer-step nested within each outer iteration.
+    trainer_name_per_layer : list of list
+        Trainer dictionaries per layer-step nested within each outer iteration.
+    num_depth_iter : list of list
+        Depth-step keys (as strings) per outer iteration.
+    """
+
     def __init__(
         self,
         save_file,
@@ -194,6 +315,33 @@ class QAOATraining:
     def locate_training_instance(cls, final_path_training: str, graph_type: str, instance: str, num_nodes: str, p: str,
                                  ER_probability: str = None, swap_layers: str = None, degree: str = None) -> list[Path]:
 
+        """Locate training JSON files matching an instance specification.
+
+        Parameters
+        ----------
+        final_path_training : str
+            Directory containing training JSON files.
+        graph_type : str
+            Graph family identifier.
+        instance : str
+            Instance index/identifier; will be zero-padded to 3 digits.
+        num_nodes : str
+            Number of nodes encoded in the filename.
+        p : str
+            QAOA depth parameter encoded in the filename.
+        ER_probability : str, optional
+            Erdos-Renyi probability suffix used for `graph_type="erdos_renyi"`.
+        swap_layers : str, optional
+            Swap-layer count used for `graph_type="line_to_full"`.
+        degree : str, optional
+            Degree used for `graph_type="random_regular"`.
+
+        Returns
+        -------
+        list of pathlib.Path
+            Matching JSON file paths (possibly empty).
+        """
+
         instance = str(instance).zfill(3)
 
         if graph_type == "heavy_hex":
@@ -215,6 +363,23 @@ class QAOATraining:
 
     @classmethod
     def load_training_instance(cls, instance_path: Path) -> "QAOATraining":
+
+        """Parse a training JSON file into a `QAOATraining` object.
+
+        Parameters
+        ----------
+        instance_path : pathlib.Path
+            Path to a training JSON file.
+
+        Returns
+        -------
+        QAOATraining
+            Parsed training metadata and per-iteration/per-layer sequences.
+
+        Notes
+        -----
+        Performs file I/O and skips iterations/layers missing required keys.
+        """
 
         with instance_path.open("r") as f:
             data = json.load(f)
@@ -312,12 +477,3 @@ class QAOATraining:
             trainer_name_per_layer,
             num_depth_iter,
         )
-
-
-
-
-
-
-
-
-

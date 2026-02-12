@@ -3,6 +3,39 @@ import json
 
 def get_minmax(minmax_path: str, graph_type: str, instance: str, num_nodes: str, 
                 ER_probability: str = None, swap_layers: str = None, degree: str = None):
+    """Locate the min/max-cut JSON file for a given instance.
+
+    Parameters
+    ----------
+    minmax_path : str
+        Base directory containing per-graph-type subfolders.
+    graph_type : str
+        Graph family identifier.
+    instance : str
+        Instance identifier used in the filename pattern.
+    num_nodes : str
+        Number of nodes encoded in the filename.
+    ER_probability : str, optional
+        Erdos-Renyi probability suffix used for `graph_type="erdos_renyi"`.
+    swap_layers : str, optional
+        Swap-layer count used for `graph_type="line_to_full"`.
+    degree : str, optional
+        Degree used for `graph_type="random_regular"`.
+
+    Returns
+    -------
+    pathlib.Path
+        Path to the unique matching min/max-cut JSON file.
+
+    Raises
+    ------
+    ValueError
+        If `graph_type` is not supported.
+    FileNotFoundError
+        If no matching file is found.
+    RuntimeError
+        If multiple matching files are found.
+    """
 
     if graph_type == "heavy_hex":
         instance_path = f"{graph_type}/{instance}*heavyhex_{num_nodes}nodes*.json"
@@ -26,6 +59,19 @@ def get_minmax(minmax_path: str, graph_type: str, instance: str, num_nodes: str,
 
 def extract_minmax_args(minmax_instance_paths: Path):
 
+    """Extract min-cut, max-cut, and sum-of-weights values from a JSON file.
+
+    Parameters
+    ----------
+    minmax_instance_paths : pathlib.Path
+        Path to a min/max-cut JSON file.
+
+    Returns
+    -------
+    tuple of (float, float, float) or None
+        `(min_cut, max_cut, sum_of_weights)` if all keys exist; otherwise None.
+    """
+
     with minmax_instance_paths.open("r") as f:
         content = json.load(f)
 
@@ -40,17 +86,23 @@ def extract_minmax_args(minmax_instance_paths: Path):
 def maxcut_approximation_ratio(
     min_cut: float, max_cut: float, sum_weights: float, energy: float
 ) -> float:
-    """Compute the approximation ratio for a given max- and min-cuts, sum of
-       edge weights, and energy.
+    """Compute the MaxCut approximation ratio for a given energy.
 
-    Args:
-        min_cut: The minimum cut of a graph.
-        max_cut: The maximum cut of a graph.
-        sum_weights: The sum of edge-weights in a graph.
-        energy: The energy from the MaximumCut problem.
+    Parameters
+    ----------
+    min_cut : float
+        Minimum cut value for the instance.
+    max_cut : float
+        Maximum cut value for the instance.
+    sum_weights : float
+        Sum of edge weights for the instance.
+    energy : float
+        Energy returned by the MaximumCut objective.
 
-    Returns:
-        The approximation ratio for the given energy and associated graph.
+    Returns
+    -------
+    float
+        Approximation ratio computed from the implied cut value.
     """
     
     cut_val = energy + 0.5 * sum_weights
