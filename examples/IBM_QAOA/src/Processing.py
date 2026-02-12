@@ -192,73 +192,22 @@ class QAOATraining:
 
     @classmethod
     def locate_training_instance(cls, final_path_training: str, graph_type: str, instance: str, num_nodes: str, p: str,
-                                 trainer: str, Evaluator: str, opt: bool = False, ER_probability: str = None,
-                                 swap_layers: str = None, degree: str = None, bond_dimension: str = None,
-                                 max_weight: str = None) -> list[Path]:
+                                 ER_probability: str = None, swap_layers: str = None, degree: str = None) -> list[Path]:
+
+        instance = str(instance).zfill(3)
 
         if graph_type == "heavy_hex":
-            if opt:
-                if Evaluator == "MPS":
-                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
-                elif Evaluator == "PP":
-                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
-                else:
-                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_SV_{p}.json"
-            else:
-                if Evaluator == "MPS":
-                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
-                elif Evaluator == "PP":
-                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
-                else:
-                    instance_path = f"*00{instance}N{num_nodes}HH*_MC_{trainer}_SV_noOpt_{p}.json"
+            instance_path = f"*{instance}N{num_nodes}HH*_MC_*{p}.json"
 
         elif graph_type == "erdos_renyi":
-            if opt:
-                if Evaluator == "MPS":
-                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
-                elif Evaluator == "PP":
-                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
-                else:
-                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_SV_{p}.json"
-            else:
-                if Evaluator == "MPS":
-                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
-                elif Evaluator == "PP":
-                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
-                else:
-                    instance_path = f"*00{instance}N{num_nodes}ER{ER_probability}_MC_{trainer}_SV_noOpt_{p}.json"
+            instance_path = f"*{instance}N{num_nodes}ER{ER_probability}_MC_*{p}.json"
 
         elif graph_type == "line_to_full":
-            if opt:
-                if Evaluator == "MPS":
-                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
-                elif Evaluator == "PP":
-                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
-                else:
-                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_SV_{p}.json"
-            else:
-                if Evaluator == "MPS":
-                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
-                elif Evaluator == "PP":
-                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
-                else:
-                    instance_path = f"*00{instance}N{num_nodes}L2S{swap_layers}_MC_{trainer}_SV_noOpt_{p}.json"
+            instance_path = f"*{instance}N{num_nodes}L2S{swap_layers}_MC_*{p}.json"
 
         elif graph_type == "random_regular":
-            if opt:
-                if Evaluator == "MPS":
-                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_optBD{bond_dimension}_{p}.json"
-                elif Evaluator == "PP":
-                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_optMW{max_weight}_{p}.json"
-                else:
-                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_SV_{p}.json"
-            else:
-                if Evaluator == "MPS":
-                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_noOptBD{bond_dimension}_{p}.json"
-                elif Evaluator == "PP":
-                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_{Evaluator}_noOptMW{max_weight}_{p}.json"
-                else:
-                    instance_path = f"*00{instance}N{num_nodes}R{degree}R_MC_{trainer}_SV_noOpt_{p}.json"
+            instance_path = f"*{instance}N{num_nodes}R{degree}R*_MC_*{p}.json"
+
         else:
             return []
 
@@ -270,20 +219,22 @@ class QAOATraining:
         with instance_path.open("r") as f:
             data = json.load(f)
 
+        # Load pre_proceesing data
         args = data.get("args")
-        if args is None or "save_file" not in args:
-            return None
-        instance_name = args["save_file"]
+
+        if args is not None and "save_file" in args:
+            instance_name = args["save_file"]
+        else:
+            instance_name = instance_path.stem # .stem is a Path object returns the final path component, without its extension(s)
 
         pre_processing = data.get("pre_processing")
         if pre_processing is None:
-            return None
-        if "pre_processor_name" not in pre_processing or "duration" not in pre_processing:
-            return None
+            pre_processing = {}
 
-        pre_processor_name = pre_processing["pre_processor_name"]
-        pre_processing_time = pre_processing["duration"]
+        pre_processor_name = pre_processing.get("pre_processor_name")
+        pre_processing_time = pre_processing.get("duration")
 
+        # Load main data
         num_iterations = []
         for key in data.keys():
             try:
