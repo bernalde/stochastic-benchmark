@@ -130,7 +130,7 @@ class QAOAHardware:
         self.problem_class = problem_class
         self.training_method = method
         self.expected_energy = eval_energy
-        self.result_file = result_file
+        self.instance = result_file
 
     # Method to return problem instance file paths for hardware
     @classmethod
@@ -231,7 +231,7 @@ class QAOAHardware:
             problem_class = circuit_md.get("problem_class")
             training_method = circuit_md.get("method")
             expected_energy = circuit_md.get("eval_energy")
-            result_file = circuit_md.get("result_file")
+            instance = circuit_md.get("result_file")
 
             # If any essential circuit info is missing, skip
             if any(v is None for v in (
@@ -249,7 +249,7 @@ class QAOAHardware:
                 problem_class,
                 training_method,
                 expected_energy,
-                result_file,
+                instance,
             )
 
             all_data.append(run)
