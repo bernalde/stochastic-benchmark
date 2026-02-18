@@ -193,11 +193,11 @@ See `ibm_qaoa_analysis_hardware.ipynb` and - `ibm_qaoa_analysis.ipynb` for:
 
 ## References
 
-- **QAOA-Parameter-Setting repository**: https://github.com/uantum-Working-Groups QAOA-Parameter-Settin
+- **QAOA-Parameter-Setting repository**: https://github.com/Quantum-Working-Groups/QAOA-Parameter-Setting
 
-- **Stochastic Benchmark framework**: Performance and statistical analysis tools
+- **Stochastic Benchmark framework**: Performance and statistical analysis tools https://github.com/usra-riacs/stochastic-benchmark
 
-- **IBM Quantum**: Hardware execution platform
+- **IBM Quantum**: Hardware execution platform https://www.ibm.com/quantum
 
 ## Contact
 

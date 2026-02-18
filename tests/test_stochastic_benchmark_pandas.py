@@ -2,7 +2,6 @@ import pandas as pd
 import pytest
 from stochastic_benchmark import stochastic_benchmark, VirtualBestBaseline, ProjectionExperiment
 from stats import StatsParameters, Median
-import os
 import names
 
 @pytest.fixture
