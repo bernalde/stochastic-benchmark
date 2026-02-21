@@ -11,6 +11,7 @@ import os
 import numpy as np
 import pickle
 import json
+import re
 
 # Add stochastic-benchmark src to path
 sys.path.append('../../src')
@@ -74,7 +75,7 @@ def set_data_path(data_dir: str, hardware: bool = False, training: bool = True, 
     else:
         return final_path_hardware
 
-def load_problem_instance(problem_path: str, graph_type: str) -> str:
+def load_problem_instance(problem_path: str, graph_type: str, num_nodes: str, instance: str) -> list[Path]:
     """Return the directory containing problem instances for a graph family.
 
     Parameters
@@ -89,16 +90,23 @@ def load_problem_instance(problem_path: str, graph_type: str) -> str:
     str
         Path to the directory containing instances for `graph_type`.
     """
+    instance = str(instance).zfill(3)
+    base = Path(problem_path) / graph_type
+
     if graph_type == "erdos_renyi" :
-        final_instance_path = f"{problem_path}/{graph_type}"
+        problem_instance_path = f"{instance}*{num_nodes}nodes*.json"
     elif graph_type == "heavy_hex":
-        final_instance_path = f"{problem_path}/{graph_type}"
+        problem_instance_path = f"{instance}*{num_nodes}nodes*.json"
     elif graph_type == "line_to_full":
-        final_instance_path = f"{problem_path}/{graph_type}"
+        problem_instance_path = f"{instance}*{num_nodes}nodes*.json"
     elif graph_type == "random_regular":
-        final_instance_path = f"{problem_path}/{graph_type}"
+        problem_instance_path = f"{instance}*{num_nodes}nodes*.json"
+    else:
+        return []
     
-    return final_instance_path
+    final_problem_instance_path = list(Path(base).glob(problem_instance_path))
+
+    return final_problem_instance_path
 
 class QAOAHardware:
 
@@ -118,19 +126,24 @@ class QAOAHardware:
         Training method used to generate parameters.
     expected_energy : float
         Evaluated energy reported by the hardware run.
-    result_file : str or None
+    file_file : str or None
         Optional reference to a result file.
     """
 
-    def __init__(self, short_name, total_time, num_shots, 
-                problem_class, method, eval_energy, result_file):  # Each isntance of class holds uniue data
+    def __init__(self, short_name, total_time, num_shots,
+             problem_class, method, eval_energy, result_file,
+             job_p, training_p, counts):
         self.instance_name = short_name
         self.QPU_time = total_time
         self.num_shots = num_shots
         self.problem_class = problem_class
         self.training_method = method
         self.expected_energy = eval_energy
-        self.instance = result_file
+        self.file_name = result_file
+        self.job_p = job_p              # from hardware job filename
+        self.training_p = training_p    # from circuit_metadata.method (or result_file)
+        self.counts = counts
+
 
     # Method to return problem instance file paths for hardware
     @classmethod
@@ -211,6 +224,10 @@ class QAOAHardware:
         QPU_time = content[0].get("total_time")
         num_shots = content[0].get("num_shots")
 
+        # job_p from the hardware job filename ---
+        m = re.search(r"_(\d+)_", instance_path.name)
+        job_p = int(m.group(1)) if m else None
+
         for data in content:
             
             # Check that this is a circuit-level record 
@@ -231,7 +248,21 @@ class QAOAHardware:
             problem_class = circuit_md.get("problem_class")
             training_method = circuit_md.get("method")
             expected_energy = circuit_md.get("eval_energy")
-            instance = circuit_md.get("result_file")
+            file_name = circuit_md.get("result_file")
+            counts = data.get("counts")  
+
+            training_p = None
+
+            if isinstance(training_method, str):
+                m2 = re.search(r"(\d+)$", training_method)   # grabs trailing number
+                if m2:
+                    training_p = int(m2.group(1))
+
+            # fallback: parse from result_file if method didn't end with a number
+            if training_p is None and isinstance(file_name, str):
+                m3 = re.search(r"_(\d+)\.json$", file_name)
+                if m3:
+                    training_p = int(m3.group(1))
 
             # If any essential circuit info is missing, skip
             if any(v is None for v in (
@@ -249,7 +280,10 @@ class QAOAHardware:
                 problem_class,
                 training_method,
                 expected_energy,
-                instance,
+                file_name,
+                job_p,
+                training_p,
+                counts
             )
 
             all_data.append(run)
@@ -262,7 +296,7 @@ class QAOATraining:
 
     Attributes
     ----------
-    instance_name : str
+    file_name : str
         Instance identifier (typically from `args.save_file`).
     pre_processing_time : float or int or None
         Duration reported for preprocessing.
@@ -297,7 +331,7 @@ class QAOATraining:
         trainer_name_layer,
         num_depth_iter,
     ):
-        self.instance_name = save_file
+        self.file_name = save_file
         self.pre_processing_time = duration
         self.pre_processor_name = pre_processor_name
 
@@ -388,9 +422,9 @@ class QAOATraining:
         args = data.get("args")
 
         if args is not None and "save_file" in args:
-            instance_name = args["save_file"]
-        else:
-            instance_name = instance_path.stem # .stem is a Path object returns the final path component, without its extension(s)
+            file_name = args["save_file"]
+        # else:
+        #     file_name = instance_path.stem # .stem is a Path object returns the final path component, without its extension(s)
 
         pre_processing = data.get("pre_processing")
         if pre_processing is None:
@@ -466,7 +500,7 @@ class QAOATraining:
             trainer_name_per_layer.append(current_iter_trainers)
 
         return cls(
-            instance_name,
+            file_name,
             pre_processing_time,
             pre_processor_name,
             train_duration_per_iter,

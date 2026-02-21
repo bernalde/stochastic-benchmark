@@ -3,7 +3,8 @@ import json
 
 def get_minmax(minmax_path: str, graph_type: str, instance: str, num_nodes: str, 
                 ER_probability: str = None, swap_layers: str = None, degree: str = None):
-    """Locate the min/max-cut JSON file for a given instance.
+    """Locate the min/max-cut JSON file for a given instance. This is specific to the IBM QAOA data 
+    for parameter setting strategies
 
     Parameters
     ----------
