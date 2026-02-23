@@ -423,9 +423,7 @@ class QAOATraining:
 
         if args is not None and "save_file" in args:
             file_name = args["save_file"]
-        # else:
-        #     file_name = instance_path.stem # .stem is a Path object returns the final path component, without its extension(s)
-
+    
         pre_processing = data.get("pre_processing")
         if pre_processing is None:
             pre_processing = {}

@@ -1,7 +1,6 @@
 import re
 import math
 from typing import Callable
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 
