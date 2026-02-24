@@ -157,7 +157,7 @@ notebooks/example_data/sk_pleiades_n=200/*
 notebooks/example_data/sk_pleiades_n=100/checkpoints/*.DS_Store
 
 # Project-specific data artifacts (examples, runs, plots)
-examples/**/exp_raw/
+examples/IBM_QAOA/exp_raw/
 examples/**/R3R/
 examples/**/runs/
 examples/**/plots/
