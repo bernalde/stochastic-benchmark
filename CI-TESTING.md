@@ -157,7 +157,7 @@ The CI environment includes:
 - scipy >= 1.11
 - matplotlib >= 3.7
 - seaborn >= 0.13.2
-- networkx >= 3.5
+- networkx >= 3.0
 - tqdm >= 4.66
 
 **Additional Dependencies:**

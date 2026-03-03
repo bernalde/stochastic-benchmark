@@ -32,7 +32,7 @@ setuptools.setup(
         "mkl-service>=2.5.2",
         "multiprocess>=0.70.18",
         "munkres>=1.1.4",
-        "networkx>=3.5",
+        "networkx>=3.0",
         "numpy>=2.0",
         "pandas>=2.3",
         "scipy>=1.11",
