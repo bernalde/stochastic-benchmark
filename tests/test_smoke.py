@@ -2,10 +2,6 @@ import pytest
 import pandas as pd
 import os, sys
 
-# Monkey patch pandas DataFrame to add back iteritems for compatibility
-if not hasattr(pd.DataFrame, 'iteritems'):
-    pd.DataFrame.iteritems = pd.DataFrame.items
-
 import matplotlib.cm as mpl_cm
 import matplotlib
 if not hasattr(mpl_cm, 'register_cmap'):
