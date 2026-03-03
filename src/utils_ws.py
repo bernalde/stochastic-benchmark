@@ -87,7 +87,7 @@ def interp(
     df_out = pd.DataFrame(index=new_index)
     df_out.index.name = df.index.name
 
-    for colname, col in df.iteritems():
+    for colname, col in df.items():
         if np.issubdtype(col.dtype, np.number):
             col_numeric = pd.to_numeric(col)
             df_out[colname] = np.interp(new_index, df.index, col_numeric, left=np.nan)
