@@ -483,9 +483,12 @@ class StaticRecommendationExperiment(Experiment):
             self.rec_params = init_from.recipe
             if init_from.postprocess is not None:
                 self.preproc_rec_params = init_from.preproc_recipe.copy()
+            else:
+                self.preproc_rec_params = init_from.recipe.copy()
 
         elif type(init_from) == pd.DataFrame:
             self.rec_params = init_from
+            self.preproc_rec_params = init_from.copy()
         else:
             warn_str = (
                 "init_from type is not supported. No recommended parameters are set."
