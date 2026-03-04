@@ -271,7 +271,7 @@ class stochastic_benchmark:
             logger.info("Bootstrapped results is already populated: doing nothing.")
             return
 
-        print("Loading and bootstrapping experimental data...")
+        logger.info("Loading and bootstrapping experimental data...")
         if self.reduce_mem:
             self.raw_data = glob.glob(os.path.join(self.here.raw_data, "*.pkl"))
 
@@ -394,7 +394,7 @@ class stochastic_benchmark:
                 "Ensure Bootstrap() or initBootstrap() has been called successfully."
             )
 
-        print("Interpolating results across resource budgets...")
+        logger.info("Interpolating results across resource budgets...")
         if self.reduce_mem:
             logger.info("Interpolating results with parameters: %s", iParams)
             if not isinstance(self.bs_results, list):
@@ -437,7 +437,7 @@ class stochastic_benchmark:
                 "Interpolated results needs to be populated before computing stats."
             )
 
-        print("Computing training/testing statistics...")
+        logger.info("Computing training/testing statistics...")
         if "train" not in self.interp_results.columns:
             self.interp_results = training.split_train_test(
                 self.interp_results, self.instance_cols, train_test_split
@@ -643,8 +643,7 @@ class stochastic_benchmark:
         """
         Adds virtual best baseline
         """
-        print("Computing virtual best baseline...")
-        logger.info("Runnng baseline")
+        logger.info("Computing virtual best baseline...")
         self.baseline = VirtualBestBaseline(self.get_experiment_parameters())
 
     def run_ProjectionExperiment(
@@ -667,8 +666,7 @@ class stochastic_benchmark:
         ProjectionExperiment
             Experiment object
         """
-        print(f"  ├─ Running ProjectionExperiment from {project_from}...")
-        logger.info("Running projection experiment")
+        logger.info("Running ProjectionExperiment from %s...", project_from)
         self.experiments.append(
             ProjectionExperiment(self.get_experiment_parameters(), project_from, postprocess, postprocess_name)
         )
@@ -679,8 +677,7 @@ class stochastic_benchmark:
         """
         Runs random search experiments
         """
-        print("  ├─ Running RandomSearchExperiment...")
-        logger.info("Running random search experiment")
+        logger.info("Running RandomSearchExperiment...")
         self.experiments.append(
             RandomSearchExperiment(
                 self.get_experiment_parameters(),
@@ -713,8 +710,7 @@ class stochastic_benchmark:
             Experiment object
         """
         id_label = f" ({id_name})" if id_name else ""
-        print(f"  ├─ Running SequentialSearchExperiment{id_label}...")
-        logger.info("Running sequential search experiment")
+        logger.info("Running SequentialSearchExperiment%s...", id_label)
         self.experiments.append(
             SequentialSearchExperiment(
                 self.get_experiment_parameters(),
