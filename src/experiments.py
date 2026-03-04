@@ -60,7 +60,7 @@ class Experiment:
 
     def evaluate(self):
         raise NotImplementedError(
-            "Evaluate should be overriden by a subclass of Experiment"
+            "Evaluate should be overridden by a subclass of Experiment"
         )
 
     def evaluate_monotone(self):
