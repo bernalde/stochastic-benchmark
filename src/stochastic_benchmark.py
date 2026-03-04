@@ -414,7 +414,8 @@ class stochastic_benchmark:
                 self.bs_results, iParams, self.parameter_names + self.instance_cols
             )
         
-        assert self.interp_results is not None, "Interpolation failed to produce results"
+        if self.interp_results is None:
+            raise RuntimeError("Interpolation failed to produce results")
 
         base = names.param2filename({"Key": self.response_key}, "")
         CIlower = names.param2filename(
@@ -443,7 +444,8 @@ class stochastic_benchmark:
             )
             self.interp_results.to_pickle(self.here.interpolate)
         
-        assert self.interp_results is not None, "interp_results was unexpectedly None"
+        if self.interp_results is None:
+            raise RuntimeError("interp_results was unexpectedly None")
 
         if self.training_stats is None:
             if os.path.exists(self.here.training_stats) and self.recover:
@@ -566,7 +568,8 @@ class stochastic_benchmark:
                         self.parameter_names + self.instance_cols,
                     )
                 
-                assert self.interp_results is not None, "Interpolation failed to produce results"
+                if self.interp_results is None:
+                    raise RuntimeError("Interpolation failed to produce results")
 
                 base = names.param2filename({"Key": self.response_key}, "")
                 CIlower = names.param2filename(
